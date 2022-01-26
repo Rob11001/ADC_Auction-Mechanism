@@ -49,7 +49,7 @@ public interface AuctionMechanism {
 	
 
     /**
-     * Controlla tutte le aste correnti
+     * Controlla tutte le aste in base allo stato
      */
 
     

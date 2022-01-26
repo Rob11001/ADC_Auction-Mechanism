@@ -6,7 +6,7 @@
 
   <groupId>it.unisa.studenti.bruno.auction</groupId>
   <artifactId>auction_mechanism</artifactId>
-  <version>1.0</version>
+  <version>1.0-SNAPSHOT</version>
 
   <name>P2P Auction Mechanism</name>
   <!-- FIXME change it to the project's website -->
@@ -95,4 +95,5 @@
 		</plugins>
 	</build>
 
-  </project>
+  
+</project>
