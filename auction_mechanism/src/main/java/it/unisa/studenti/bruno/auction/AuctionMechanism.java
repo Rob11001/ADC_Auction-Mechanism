@@ -1,3 +1,4 @@
+package it.unisa.studenti.bruno.auction;
 import java.util.Date;
 
 /**
@@ -23,6 +24,22 @@ the second-highest pays the price bid by the third-highest, and so on.
 public interface AuctionMechanism {
 	
 	/**
+	 * Allows user to register his information into the system
+	 * @param username a String describing username
+	 * @param password a String describing user's password
+	 * @return true if the user's information are valid, false otherwise
+	 */
+	public boolean register(String username, String password);
+
+	/**
+	 * Allows user to login in the system
+	 * @param username a String describing the username
+	 * @param password a String describing the user's password
+	 * @return true if the user's information match, false otherwise
+	 */
+	public boolean login(String username, String password);
+	
+	/**
 	 * Creates a new auction for a good.
 	 * @param _auction_name a String, the name identify the auction.
 	 * @param _end_time a Date that is the end time of an auction.
@@ -30,7 +47,7 @@ public interface AuctionMechanism {
 	 * @param _description a String describing the selling goods in the auction.
 	 * @return true if the auction is correctly created, false otherwise.
 	 */
-	public boolean createAuction(String _auction_name, Date _end_time, double _reserved_price, String _description);
+	public boolean createAuction(String _auction_name, Date _end_time, double _reserved_price, int _num_products, String _description);
 	
 	/**
 	 * Checks the status of the auction.
