@@ -2,12 +2,11 @@ package it.unisa.studenti.bruno.auction;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 import it.unisa.studenti.bruno.auction.utilities.Auction;
+import it.unisa.studenti.bruno.auction.utilities.State;
 import it.unisa.studenti.bruno.auction.utilities.User;
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.PeerBuilderDHT;
@@ -159,13 +158,54 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     }
 
     @Override
-    public String checkAuction(String _auction_name) {
-        // TODO Auto-generated method stub
+    public Auction checkAuction(String _auction_name, String _author_name) {
+        try {
+            // Gets auction
+            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name + _author_name)).start();
+            futureGet.awaitUninterruptibly();
+            if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                Auction auction = (Auction) futureGet.data().object();
+                // Updates auction's state if it's necessary
+                if(!isAValidDate(auction._end_time) && auction._auction_state == State.AVAILABLE) {
+                    // TODO: Bisogna inviare delle notifiche
+                    
+                    auction._auction_state = State.CLOSED;
+                    _dht.put(Number160.createHash(_auction_name + _author_name)).data(new Data(auction)).start().awaitUninterruptibly();
+                    
+                    // Need to remove auction from global auctions list
+                    Number160 global_list_key = Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(_auction_name.charAt(0)));
+                    futureGet =_dht.get(global_list_key).start();
+                    futureGet.awaitUninterruptibly();
+                    if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                        List<Pair<String, String>> auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
+                        int pos = binarySearch(auctions_list, _auction_name);
+                        while(!auctions_list.get(pos).element1().equals(auction._author)) pos++; // To be sure to remove the correct auction
+                        auctions_list.remove(pos);
+                        _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
+                    }
+                }
+
+                return auction;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return null;
     }
+
     @Override
-    public String placeAbid(String _auction_name, double _bid_amount) {
-        // TODO Auto-generated method stub
+    public String placeAbid(String _auction_name, String _author_name, double _bid_amount) {
+        // Need to control that it's not in my_auction_list/bidder_list
+        if(_author_name.equals(user._username)) return null;
+        for (Pair<String, String> pair : my_bidder_list)
+            if(pair.element0().equals(_auction_name) && pair.element1().equals(_author_name))
+                return null;
+            
+        // Gets auction
+        // Checks if the bid can be added
+        // Update bidder_list if necessary
+        // Notify if someone it's excluded from the list
         return null;
     }
 
@@ -193,6 +233,11 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         } else {
             return j + 1;
         }   
+    }
+
+    private boolean isAValidDate(Date date) {
+        Date current = new Date();
+        return date.after(current);
     }
 
 

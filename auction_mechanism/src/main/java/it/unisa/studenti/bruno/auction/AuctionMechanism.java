@@ -1,6 +1,8 @@
 package it.unisa.studenti.bruno.auction;
 import java.util.Date;
 
+import it.unisa.studenti.bruno.auction.utilities.Auction;
+
 /**
 Copyright 2017 Universita' degli Studi di Salerno
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +56,7 @@ public interface AuctionMechanism {
 	 * @param _auction_name a String, the name of the auction.
 	 * @return a String value that is the status of the auction.
 	 */
-	public String checkAuction(String _auction_name);
+	public Auction checkAuction(String _auction_name, String _author_name);
 	
 	/**
 	 * Places a bid for an auction if it is not already ended.
@@ -62,7 +64,7 @@ public interface AuctionMechanism {
 	 * @param _bid_amount a double value, the bid for an auction.
 	 * @return a String value that is the status of the auction.
 	 */
-	public String placeAbid(String _auction_name, double _bid_amount);
+	public String placeAbid(String _auction_name, String _author_name, double _bid_amount);
 	
 
     /**
