@@ -73,6 +73,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public boolean login(String _username, String _password) {
         try {
             FutureGet futureGet = _dht.get(Number160.createHash(_username)).start();
@@ -111,6 +112,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public boolean createAuction(String _auction_name, Date _end_time, double _reserved_price, int _num_products, String _description) {
         if(user == null) return false;
         try {
@@ -178,7 +180,9 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         return null;
     }
 
+    
     @Override
+    @SuppressWarnings("unchecked")
     public Auction placeAbid(String _auction_name, String _author_name, double _bid_amount) {
         // Need to control that it's not in my_auction_list/bidder_list
         if(_author_name.equals(user._username)) return null;
@@ -215,9 +219,9 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 } else {
                     list = new ArrayList<>();
                 }
-                list.add(new Pair<String,String>(_auction_name, _auction_name));
+                list.add(new Pair<String, String>(_auction_name, _auction_name));
                 _dht.put(my_list_key).data(new Data(list)).start().awaitUninterruptibly();
-                my_bidder_list.add(new Pair<String,String>(_auction_name, _author_name));
+                my_bidder_list.add(new Pair<String, String>(_auction_name, _author_name));
 
                 return auction;
             }
@@ -230,6 +234,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<Pair<String, String>> getListOfAuctions(Character index) {
         try {
             FutureGet futureGet = _dht.get(Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(index))).start();
@@ -244,31 +249,6 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         }
         
         return Collections.emptyList();
-    }
-
-    private boolean checkAndUpdateState(Auction auction) throws Exception {
-        if(!isAValidDate(auction._end_time) && auction._auction_state == State.AVAILABLE) {
-            // TODO: Bisogna inviare delle notifiche (le notifiche di fine asta)
-            
-            auction._auction_state = State.CLOSED;
-            _dht.put(Number160.createHash(auction._auction_name + auction._author)).data(new Data(auction)).start().awaitUninterruptibly();
-            
-            // Need to remove auction from global auctions list
-            Number160 global_list_key = Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(auction._auction_name.charAt(0)));
-            FutureGet futureGet =_dht.get(global_list_key).start();
-            futureGet.awaitUninterruptibly();
-            if(futureGet.isSuccess() && !futureGet.isEmpty()) {
-                List<Pair<String, String>> auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
-                int pos = binarySearch(auctions_list, auction._auction_name);
-                while (!auctions_list.get(pos).element1().equals(auction._author)) pos++; // To be sure to remove the correct auction
-                auctions_list.remove(pos);
-                _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
-            }
-
-            return false;
-        }
-
-        return true;
     }
 
     @Override
@@ -296,6 +276,32 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         }
         _dht.peer().announceShutdown().start().awaitUninterruptibly();
         
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean checkAndUpdateState(Auction auction) throws Exception {
+        if(!isAValidDate(auction._end_time) && auction._auction_state == State.AVAILABLE) {
+            // TODO: Bisogna inviare delle notifiche (le notifiche di fine asta)
+            
+            auction._auction_state = State.CLOSED;
+            _dht.put(Number160.createHash(auction._auction_name + auction._author)).data(new Data(auction)).start().awaitUninterruptibly();
+            
+            // Need to remove auction from global auctions list
+            Number160 global_list_key = Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(auction._auction_name.charAt(0)));
+            FutureGet futureGet =_dht.get(global_list_key).start();
+            futureGet.awaitUninterruptibly();
+            if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                List<Pair<String, String>> auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
+                int pos = binarySearch(auctions_list, auction._auction_name);
+                while (!auctions_list.get(pos).element1().equals(auction._author)) pos++; // To be sure to remove the correct auction
+                auctions_list.remove(pos);
+                _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
+            }
+
+            return false;
+        }
+
         return true;
     }
 
