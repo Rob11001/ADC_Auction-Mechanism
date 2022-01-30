@@ -1,7 +1,9 @@
 package it.unisa.studenti.bruno.auction;
 import java.util.Date;
+import java.util.List;
 
 import it.unisa.studenti.bruno.auction.utilities.Auction;
+import net.tomp2p.utils.Pair;
 
 /**
 Copyright 2017 Universita' degli Studi di Salerno
@@ -40,6 +42,8 @@ public interface AuctionMechanism {
 	 * @return true if the user's information match, false otherwise
 	 */
 	public boolean login(String username, String password);
+
+	public boolean logout();
 	
 	/**
 	 * Creates a new auction for a good.
@@ -64,24 +68,9 @@ public interface AuctionMechanism {
 	 * @param _bid_amount a double value, the bid for an auction.
 	 * @return a String value that is the status of the auction.
 	 */
-	public String placeAbid(String _auction_name, String _author_name, double _bid_amount);
+	public Auction placeAbid(String _auction_name, String _author_name, double _bid_amount);
 	
 
-    /**
-     * Controlla tutte le aste in base allo stato
-     */
-
-    
-     /**
-     * 
-     * Cancella un'asta passata
-     * 
-     */
-
-	 /**
-	  * Lascia la rete (metodo di utility)
-	  */
-
-     
+	public List<Pair<String, String>> getListOfAuctions(Character index);
 	
 }

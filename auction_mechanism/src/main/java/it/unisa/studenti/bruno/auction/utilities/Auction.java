@@ -28,9 +28,9 @@ public class Auction implements Serializable {
         this._bid_list = new ArrayList<>();
     }
 
-    public String addBid(double _bid_value, String _bid_owner) {
+    public String placeAbid(double _bid_value, String _bid_owner) {
         if(_bid_value <= _reserved_price)
-            return null;
+            return _bid_owner;
         
         // Bisogna vedere se c'è già una bid dell'utente?
         boolean added = false;
