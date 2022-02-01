@@ -1,6 +1,5 @@
 package it.unisa.studenti.bruno.auction;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
