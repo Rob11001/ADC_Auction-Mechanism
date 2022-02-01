@@ -60,7 +60,7 @@ public interface AuctionMechanism {
 	 * @param _auction_name a String, the name of the auction.
 	 * @return a String value that is the status of the auction.
 	 */
-	public Auction checkAuction(String _auction_name, String _author_name);
+	public Auction checkAuction(String _auction_name);
 	
 	/**
 	 * Places a bid for an auction if it is not already ended.
@@ -68,7 +68,7 @@ public interface AuctionMechanism {
 	 * @param _bid_amount a double value, the bid for an auction.
 	 * @return a String value that is the status of the auction.
 	 */
-	public Auction placeAbid(String _auction_name, String _author_name, double _bid_amount);
+	public Auction placeAbid(String _auction_name, double _bid_amount);
 	
 
 	public List<Pair<String, String>> getListOfAuctions(Character index);

@@ -25,11 +25,11 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     private final Peer peer;
 	private final PeerDHT _dht;
 	private final int DEFAULT_MASTER_PORT = 4000;
-    private final String GLOBAL_AUCTIONS_LIST = "";
-    private User user;
+    private final String GLOBAL_AUCTIONS_LIST = "GLOBAL_AUCTION_MECHANISM";
+    public User user;
 
-    private final List<String> my_auctions_list = new ArrayList<>();
-    private final List<Pair<String, String>> my_bidder_list = new ArrayList<>();
+    public final List<String> my_auctions_list = new ArrayList<>();
+    public final List<Pair<String, String>> my_bidder_list = new ArrayList<>();
 
     public AuctionMechanismImpl(int _id, String _master_peer, final MessageListener _listener) throws Exception {
         peer = new PeerBuilder(Number160.createHash(_id)).ports(DEFAULT_MASTER_PORT + _id).start();
@@ -116,12 +116,12 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         if(user == null) return false;
         try {
             Auction auction = new Auction(_auction_name, user._username, _description, _num_products, _reserved_price, _end_time);
-            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name + user._username)).start();
+            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name)).start();
             futureGet.awaitUninterruptibly();
             // Checks if the auction doesn't exist
             if(futureGet.isSuccess() && futureGet.isEmpty()) {
                 // Auction creation
-                _dht.put(Number160.createHash(_auction_name + user._username)).data(new Data(auction)).start().awaitUninterruptibly();
+                _dht.put(Number160.createHash(_auction_name)).data(new Data(auction)).start().awaitUninterruptibly();
                 
                 // Updates user's auctions list and global auctions list
                 
@@ -129,9 +129,15 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 Number160 global_list_key = Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(_auction_name.charAt(0)));
                 futureGet =_dht.get(global_list_key).start();
                 futureGet.awaitUninterruptibly();
-                if(futureGet.isSuccess() && !futureGet.isEmpty()) {
-                    // Saves the new auctions in its list in order
-                    List<Pair<String, String>> auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
+                if(futureGet.isSuccess()) {
+                    List<Pair<String, String>> auctions_list;
+                    if(futureGet.isEmpty()) {
+                        auctions_list = new ArrayList<>();
+                    } else {
+                        // Saves the new auctions in its list in order
+                        auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
+                    }
+
                     int pos = binarySearch(auctions_list, _auction_name);
                     auctions_list.add(pos, new Pair<String,String>(_auction_name, user._username));
                     _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
@@ -161,10 +167,10 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     }
 
     @Override
-    public Auction checkAuction(String _auction_name, String _author_name) {
+    public Auction checkAuction(String _auction_name) {
         try {
             // Gets auction
-            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name + _author_name)).start();
+            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name)).start();
             futureGet.awaitUninterruptibly();
             if(futureGet.isSuccess() && !futureGet.isEmpty()) {
                 Auction auction = (Auction) futureGet.data().object();
@@ -182,16 +188,19 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     
     @Override
     @SuppressWarnings("unchecked")
-    public Auction placeAbid(String _auction_name, String _author_name, double _bid_amount) {
+    public Auction placeAbid(String _auction_name, double _bid_amount) {
         // Need to control that it's not in my_auction_list/bidder_list
-        if(_author_name.equals(user._username)) return null;
         for (Pair<String, String> pair : my_bidder_list)
-            if(pair.element0().equals(_auction_name) && pair.element1().equals(_author_name))
+            if(pair.element0().equals(_auction_name))
+                return null;
+        
+        for(String auction : my_auctions_list) 
+            if(auction.equals(_auction_name))
                 return null;
             
         try {
             // Gets auction
-            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name + _author_name)).start();
+            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name)).start();
             futureGet.awaitUninterruptibly();
             if(futureGet.isSuccess() && !futureGet.isEmpty()) {
                 Auction auction = (Auction) futureGet.data().object();
@@ -206,7 +215,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 }
                 
                 // Updates the auction with a new bid
-                _dht.put(Number160.createHash(_auction_name + _author_name)).data(new Data(auction)).start().awaitUninterruptibly();                
+                _dht.put(Number160.createHash(_auction_name)).data(new Data(auction)).start().awaitUninterruptibly();                
                 
                 // Updates the bidder_list of the user both locally and in DHT
                 Number160 my_list_key = Number160.createHash(user._username + Number160.createHash(user._username));
@@ -218,9 +227,9 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 } else {
                     list = new ArrayList<>();
                 }
-                list.add(new Pair<String, String>(_auction_name, _auction_name));
+                list.add(new Pair<String, String>(_auction_name, auction._author));
                 _dht.put(my_list_key).data(new Data(list)).start().awaitUninterruptibly();
-                my_bidder_list.add(new Pair<String, String>(_auction_name, _author_name));
+                my_bidder_list.add(new Pair<String, String>(_auction_name, auction._author));
 
                 return auction;
             }
@@ -284,14 +293,20 @@ public class AuctionMechanismImpl implements AuctionMechanism {
             // TODO: Bisogna inviare delle notifiche (le notifiche di fine asta)
             
             auction._auction_state = State.CLOSED;
-            _dht.put(Number160.createHash(auction._auction_name + auction._author)).data(new Data(auction)).start().awaitUninterruptibly();
+            _dht.put(Number160.createHash(auction._auction_name)).data(new Data(auction)).start().awaitUninterruptibly();
             
             // Need to remove auction from global auctions list
             Number160 global_list_key = Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(auction._auction_name.charAt(0)));
             FutureGet futureGet =_dht.get(global_list_key).start();
             futureGet.awaitUninterruptibly();
-            if(futureGet.isSuccess() && !futureGet.isEmpty()) {
-                List<Pair<String, String>> auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
+            if(futureGet.isSuccess()) {
+                List<Pair<String, String>> auctions_list;
+                if(futureGet.isEmpty()) {
+                    auctions_list = new ArrayList<>();
+                } else {
+                    auctions_list = (List<Pair<String, String>>) futureGet.data().object();
+                }
+                
                 int pos = binarySearch(auctions_list, auction._auction_name);
                 while (!auctions_list.get(pos).element1().equals(auction._author)) pos++; // To be sure to remove the correct auction
                 auctions_list.remove(pos);
