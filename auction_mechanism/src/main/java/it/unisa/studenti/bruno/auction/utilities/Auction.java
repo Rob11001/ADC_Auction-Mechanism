@@ -14,8 +14,7 @@ public class Auction implements Serializable {
     public double _reserved_price;
     public Date _end_time;
     public State _auction_state;
-    private final List<Bid> _bid_list;
-    // Categoria?
+    public final List<Bid> _bid_list;
 
     public Auction(String _auction_name, String _author, String _description, int _num_products, double _reserved_price, Date _end_time) {
         this._auction_name = _auction_name;
@@ -44,9 +43,10 @@ public class Auction implements Serializable {
             }
         }
         
-        if(!added && len < _num_products)
+        if(!added && len < _num_products) {
             _bid_list.add(new Bid(_bid_value, _bid_owner));
-
+            added = true;
+        }
         // Ritorna l'user escluso dall'asta
         if(_bid_list.size() > _num_products) {
             Bid last_bid = _bid_list.remove(_bid_list.size() - 1);
@@ -55,7 +55,7 @@ public class Auction implements Serializable {
             return last_bid._bid_owner;
         }
 
-        return null;
+        return added ? null : _bid_owner;
     }
 
     

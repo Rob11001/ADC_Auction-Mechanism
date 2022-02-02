@@ -2,11 +2,13 @@ package it.unisa.studenti.bruno.auction;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 import it.unisa.studenti.bruno.auction.utilities.Auction;
+import it.unisa.studenti.bruno.auction.utilities.Pair;
 import it.unisa.studenti.bruno.auction.utilities.State;
 import it.unisa.studenti.bruno.auction.utilities.User;
 import net.tomp2p.dht.FutureGet;
@@ -19,7 +21,6 @@ import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.PeerAddress;
 import net.tomp2p.rpc.ObjectDataReply;
 import net.tomp2p.storage.Data;
-import net.tomp2p.utils.Pair;
 
 public class AuctionMechanismImpl implements AuctionMechanism {
     private final Peer peer;
@@ -139,6 +140,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                     }
 
                     int pos = binarySearch(auctions_list, _auction_name);
+                    if(pos == - 1) pos = 0;
                     auctions_list.add(pos, new Pair<String,String>(_auction_name, user._username));
                     _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
                 }
@@ -256,7 +258,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
             e.printStackTrace();
         }
         
-        return Collections.emptyList();
+        return new ArrayList<>();
     }
 
     @Override
@@ -265,6 +267,8 @@ public class AuctionMechanismImpl implements AuctionMechanism {
             user._peer_address = null;
             _dht.put(Number160.createHash(user._username)).data(new Data(user)).start().awaitUninterruptibly();
             user = null;
+            my_auctions_list.clear();
+            my_bidder_list.clear();
             
             return true;
         } catch (Exception e) {
@@ -308,8 +312,8 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 }
                 
                 int pos = binarySearch(auctions_list, auction._auction_name);
-                while (!auctions_list.get(pos).element1().equals(auction._author)) pos++; // To be sure to remove the correct auction
-                auctions_list.remove(pos);
+                if(pos != -1 && auctions_list.get(pos).element0().equals(auction._auction_name))    // To be sure to remove the right auction 
+                    auctions_list.remove(pos);
                 _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
             }
 
@@ -321,9 +325,9 @@ public class AuctionMechanismImpl implements AuctionMechanism {
 
     private int binarySearch(List<Pair<String, String>> list, String key) {
         int len = list.size();
-        if(len == 0) return 0;
+        if(len == 0) return -1;
 
-        int i = 0, j = len;
+        int i = 0, j = len - 1;
         while (j - i > 1) {
             int tmp = (j + i) / 2;
             Pair<String, String> tmp_pair = list.get(tmp);
@@ -347,7 +351,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     }
 
     private boolean isAValidDate(Date date) {
-        Date current = new Date();
+        Date current = Calendar.getInstance().getTime();
         return date.after(current);
     }
 

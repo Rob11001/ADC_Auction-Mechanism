@@ -3,7 +3,7 @@ import java.util.Date;
 import java.util.List;
 
 import it.unisa.studenti.bruno.auction.utilities.Auction;
-import net.tomp2p.utils.Pair;
+import it.unisa.studenti.bruno.auction.utilities.Pair;
 
 /**
 Copyright 2017 Universita' degli Studi di Salerno

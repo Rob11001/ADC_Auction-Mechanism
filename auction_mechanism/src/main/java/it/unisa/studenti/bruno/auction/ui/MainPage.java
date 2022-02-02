@@ -1,9 +1,9 @@
 package it.unisa.studenti.bruno.auction.ui;
 
-import java.text.DateFormat;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Pattern;
-import java.util.zip.DataFormatException;
 
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextColor;
@@ -24,11 +24,15 @@ import com.googlecode.lanterna.gui2.menu.MenuBar;
 import com.googlecode.lanterna.gui2.menu.MenuItem;
 
 import it.unisa.studenti.bruno.auction.AuctionMechanismImpl;
-import net.tomp2p.utils.Pair;
+import it.unisa.studenti.bruno.auction.utilities.Auction;
+import it.unisa.studenti.bruno.auction.utilities.Bid;
+import it.unisa.studenti.bruno.auction.utilities.Pair;
+import it.unisa.studenti.bruno.auction.utilities.State;
 
 public class MainPage extends BasicWindow {
     public Panel body;
     public Panel notify_panel;
+    static final int PAGE_SIZE = 2;
 
     public MainPage(AuctionMechanismImpl auction_mechanism) {
         super();
@@ -47,12 +51,18 @@ public class MainPage extends BasicWindow {
             }
 
             body.removeAllComponents();
-            body.setLayoutManager(new GridLayout(1));
+            body.setLayoutManager(new GridLayout(2));
             body.addComponent(new Label("Auction name"));
+            body.addComponent(new Label(" "));
             for (String auction_name : auction_mechanism.my_auctions_list) {
                 body.addComponent(new Label(auction_name));
-            }
 
+                Button check_button = new Button("Check");
+                check_button.addListener((Button button) -> {
+                    checkListener(auction_name, auction_mechanism);
+                });
+                body.addComponent(check_button);         
+            }
         }));
 
         _menu_user.add(new MenuItem("My bids", () -> {
@@ -64,13 +74,27 @@ public class MainPage extends BasicWindow {
             }
 
             body.removeAllComponents();
-            body.setLayoutManager(new GridLayout(2));
+            body.setLayoutManager(new GridLayout(3));
             body.addComponent(new Label("Auction name"));
             body.addComponent(new Label("Auction's author"));
+            body.addComponent(new Label(" "));
             for (Pair<String, String> pair : auction_mechanism.my_bidder_list) {
                 body.addComponent(new Label(pair.element0()));
                 body.addComponent(new Label(pair.element1()));
+
+                Button check_button = new Button("Check");
+                check_button.addListener((Button button) -> {
+                    checkListener(pair.element0(), auction_mechanism);
+                });
+                body.addComponent(check_button);  
             }
+
+            // Cancel button
+            Button cancel_button = new Button("Cancel");
+            body.addComponent(cancel_button);
+            cancel_button.addListener((Button button) -> {
+                body.removeAllComponents();
+            });
 
         }));
 
@@ -112,38 +136,37 @@ public class MainPage extends BasicWindow {
             body.addComponent(description_box);
 
             body.addComponent(new Label("Number of products: "));
-            TextBox num_products_box = new TextBox().setValidationPattern(Pattern.compile("[1-9][0-9]*"));
+            TextBox num_products_box = new TextBox(new TerminalSize(4, 1)).setValidationPattern(Pattern.compile("[1-9][0-9]*"));
             body.addComponent(num_products_box);
 
             body.addComponent(new Label("Reserved price: "));
-            TextBox reserved_price_box = new TextBox().setValidationPattern(Pattern.compile("[1-9][0-9]*"));
+            TextBox reserved_price_box = new TextBox(new TerminalSize(6, 1)).setValidationPattern(Pattern.compile("[1-9][0-9]*"));
             body.addComponent(reserved_price_box);
 
-            // TODO: Vedere di risolvere la larghezza delle box e la creazione mediante la data (validare la data)
             Panel end_time_panel = new Panel(new GridLayout(9));
             body.addComponent(new Label("End time (yyyy-mm-dd hh:mm): "));
-            TextBox year_box = new TextBox()
-                .setValidationPattern(Pattern.compile("[0-9]"));
+            TextBox year_box = new TextBox(new TerminalSize(5, 1))
+                .setValidationPattern(Pattern.compile("[0-9]*"));
             end_time_panel.addComponent(year_box);
             end_time_panel.addComponent(new Label("-"));
 
-            TextBox mounth_box = new TextBox()
-                .setValidationPattern(Pattern.compile("[0-9]"));
+            TextBox mounth_box = new TextBox(new TerminalSize(3, 1))
+                .setValidationPattern(Pattern.compile("[0-9]*"));
             end_time_panel.addComponent(mounth_box);
             end_time_panel.addComponent(new Label("-"));
 
-            TextBox day_box = new TextBox()
-                .setValidationPattern(Pattern.compile("[1-9][0-9]*"));
+            TextBox day_box = new TextBox(new TerminalSize(3, 1))
+                .setValidationPattern(Pattern.compile("[0-9]*"));
             end_time_panel.addComponent(day_box);
             end_time_panel.addComponent(new Label(" "));
             
-            TextBox hour_box = new TextBox()
-                .setValidationPattern(Pattern.compile("[0-9]"));
+            TextBox hour_box = new TextBox(new TerminalSize(3, 1))
+                .setValidationPattern(Pattern.compile("[0-9]*"));
             end_time_panel.addComponent(hour_box);
             end_time_panel.addComponent(new Label(":"));
 
-            TextBox min_box = new TextBox()
-                .setValidationPattern(Pattern.compile("[0-9]"));
+            TextBox min_box = new TextBox(new TerminalSize(3, 1))
+                .setValidationPattern(Pattern.compile("[0-9]*"));
             end_time_panel.addComponent(min_box);
 
             body.addComponent(end_time_panel);
@@ -158,16 +181,12 @@ public class MainPage extends BasicWindow {
                 String num_products = num_products_box.getText();
                 String reserved_price = reserved_price_box.getText();
                 String year = year_box.getText();
-                String mounth = mounth_box.getText();
+                String month = mounth_box.getText();
                 String dd = day_box.getText();
                 String hh = hour_box.getText();
                 String mm = min_box.getText();
                 
-                if( year.length() != 4
-                    || mounth.length() != 2  
-                    || dd.length() != 2 
-                    || hh.length() != 2 
-                    || mm.length() != 2) {
+                if(!isAvalidDate(year, month, dd, hh, mm)) {
                     // Error message
                     MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Invalid date format");
                     
@@ -176,7 +195,14 @@ public class MainPage extends BasicWindow {
 
                 if(auction_name.length() > 0 && num_products.length() > 0 && reserved_price.length() > 0) {
                     try {
-                        Date end_time = new Date(Integer.parseInt(year), Integer.parseInt(mounth) - 1, Integer.parseInt(dd), Integer.parseInt(hh), Integer.parseInt(mm)); 
+                        Calendar calendar = Calendar.getInstance();
+                        calendar.set(Calendar.YEAR, Integer.parseInt(year));
+                        calendar.set(Calendar.MONTH, Integer.parseInt(month) - 1);
+                        calendar.set(Calendar.DAY_OF_MONTH, Integer.parseInt(dd));
+                        calendar.set(Calendar.HOUR_OF_DAY, Integer.parseInt(hh));
+                        calendar.set(Calendar.MINUTE, Integer.parseInt(mm));
+                        
+                        Date end_time = calendar.getTime();
                         
                         if(auction_mechanism.createAuction(auction_name, end_time, Double.parseDouble(reserved_price), Integer.parseInt(num_products), description)) {
                             MessageDialog.showMessageDialog(this.getTextGUI(), "Success", "Auction has been successfully created");        
@@ -192,7 +218,7 @@ public class MainPage extends BasicWindow {
                     MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Auction cannot be created");
                 } else {
                     // Error message
-                    MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Auction name cannot be empty");                    
+                    MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Auction name\\number of products\\reserved price cannot be empty");                    
                 }
         
             });
@@ -210,15 +236,43 @@ public class MainPage extends BasicWindow {
         }));
 
         _menu_auctions.add(new MenuItem("Search", () -> {
+            body.removeAllComponents();
+            body.setLayoutManager(new GridLayout(2));
 
-        }));
+            body.addComponent(new Label("Auction name: "));
+            TextBox search_box = new TextBox().setValidationPattern(Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,29}"));
+            body.addComponent(search_box);
+            
+            // Cancel button
+            Button cancel_button = new Button("Cancel");
+            body.addComponent(cancel_button);
+            cancel_button.addListener((Button button) -> {
+                body.removeAllComponents();
+            });
+            body.addComponent(cancel_button);
 
-        _menu_auctions.add(new MenuItem("Place a bid", () -> {
+            // Search button
+            Button search_button = new Button("Search");
+            search_button.addListener((Button s_button) -> {
+                if(search_box.getText().length() == 0) {
+                    // Error message
+                    MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Invalid auction name");
+                    
+                    return;
+                }
 
+                checkListener(search_box.getText(), auction_mechanism);
+            });
+            body.addComponent(search_button);
+
+            
         }));
 
         _menu_auctions.add(new MenuItem("All auctions", () -> {
-
+            body.removeAllComponents();
+            char index = 'a';
+            List<Pair<String, String>> list = auction_mechanism.getListOfAuctions(index);
+            createSearchPage(list, 0, auction_mechanism, index);
         }));
 
         this.setMenuBar(menubar);
@@ -235,5 +289,170 @@ public class MainPage extends BasicWindow {
         );
 
     }
-    
+
+
+    private boolean isAvalidDate(String year, String mounth, String day, String hh, String mm) {
+        if(year.length() != 4 || Integer.parseInt(year) < 1900) 
+            return false;
+        if(mounth.length() != 2 || Integer.parseInt(mounth) < 1 || Integer.parseInt(mounth) > 12)
+            return false;
+        if(day.length() != 2 || Integer.parseInt(day) < 1 || Integer.parseInt(day) > 31)
+            return false;
+        if(hh.length() < 1 || hh.length() > 2 || Integer.parseInt(hh) < 0 || Integer.parseInt(hh) > 23)
+            return false;
+        if(mm.length() != 2 || Integer.parseInt(mm) < 0 || Integer.parseInt(mm) > 59)
+            return false;
+        
+        return true;
+    }
+
+    private void checkListener(String auction_name, AuctionMechanismImpl auction_mechanism) {
+        Auction auction;
+        try {
+            auction = auction_mechanism.checkAuction(auction_name);
+            if(auction == null) {
+                // Error message
+                MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Problem in auction retrieved");
+                return;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Problem in auction retrieved");
+            return;
+        }
+
+        body.removeAllComponents();
+        body.setLayoutManager(new GridLayout(1));
+                    
+        Panel auction_info_panel = new Panel(new GridLayout(2));
+        body.addComponent(auction_info_panel);
+                    
+        Panel bids_panel = new Panel(new GridLayout(2));
+        body.addComponent(bids_panel);
+
+        auction_info_panel.addComponent(new Label("Auction name: "));
+        auction_info_panel.addComponent(new Label(auction._auction_name));
+
+        auction_info_panel.addComponent(new Label("Author: "));
+        auction_info_panel.addComponent(new Label(auction._author));
+                    
+        auction_info_panel.addComponent(new Label("Description: "));
+        auction_info_panel.addComponent(new Label(auction._description));
+
+        auction_info_panel.addComponent(new Label("Number of products: "));
+        auction_info_panel.addComponent(new Label("" + auction._num_products));
+                    
+        auction_info_panel.addComponent(new Label("Reserved price: "));
+        auction_info_panel.addComponent(new Label("" + auction._reserved_price));
+
+        auction_info_panel.addComponent(new Label("End time: "));
+        Date date = auction._end_time;
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        auction_info_panel.addComponent(new Label(String.format("%d-%02d-%02d %02d:%02d", calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH), calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE))));
+
+        auction_info_panel.addComponent(new Label("Auction status: "));
+        auction_info_panel.addComponent(new Label(auction._auction_state == State.AVAILABLE ? "Open" : "Closed"));
+        
+        if(!auction._bid_list.isEmpty()) {
+            bids_panel.addComponent(new Label("Bids:"));
+            Panel list = new Panel(new GridLayout(2));
+            for (Bid bid : auction._bid_list) {
+                list.addComponent(new Label(bid._bid_owner));
+                list.addComponent(new Label(String.format("%.2f", bid._bid_value)));
+            }
+            bids_panel.addComponent(list);
+        }
+                    
+        // Place a bid button
+        if(auction._auction_state == State.AVAILABLE && !auction._author.equals(auction_mechanism.user._username)) {
+            Panel place_a_bid_panel = new Panel(new GridLayout(2));
+            TextBox bid_box = new TextBox().setValidationPattern(Pattern.compile("[0-9]*"));
+            place_a_bid_panel.addComponent(bid_box);
+            Button place_a_bid_button = new Button("Place a bid");
+            place_a_bid_panel.addComponent(place_a_bid_button);
+            // Listener for place a bid action
+            place_a_bid_button.addListener((Button b) -> {
+                String bid_text = bid_box.getText();
+                if(bid_text.length() == 0) {
+                    MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Invalid bid value");
+                    return;
+                }
+                double bid_value = Double.parseDouble(bid_text);
+                try {
+                    Auction v = auction_mechanism.placeAbid(auction._auction_name, bid_value);
+                    if(v != null) {
+                        MessageDialog.showMessageDialog(this.getTextGUI(), "Success", "Bid placed");
+                        bids_panel.removeAllComponents();
+                        
+                        bids_panel.addComponent(new Label("Bids:"));
+                        Panel list = new Panel(new GridLayout(2));
+                        for (Bid bid : v._bid_list) {
+                            list.addComponent(new Label(bid._bid_owner));
+                            list.addComponent(new Label(String.format("%.2f", bid._bid_value)));
+                        }
+                        bids_panel.addComponent(list);
+                        
+                        return;
+                    }
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
+                // Error Message
+                MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "You cannot place a bid");
+            });
+            body.addComponent(place_a_bid_panel);
+        }
+    }
+
+    private void createSearchPage(List<Pair<String, String>> list, int offset, AuctionMechanismImpl auction_mechanism, char index) {
+        body.removeAllComponents();
+        body.setLayoutManager(new GridLayout(3));
+        body.addComponent(new Label("Auction name"));
+        body.addComponent(new Label("Author"));
+        body.addComponent(new Label(" "));
+
+        while(list.size() < offset + MainPage.PAGE_SIZE && index != 'z') {
+            index = (char) (index + 1); 
+            list.addAll(auction_mechanism.getListOfAuctions(index));
+        }
+        final char idx = index;
+
+        for (int i = offset; i < list.size() && i < offset + MainPage.PAGE_SIZE; i++) {
+            Pair<String, String> item = list.get(i);
+            body.addComponent(new Label(item.element0()));
+            body.addComponent(new Label(item.element1()));
+            Button button = new Button("Check");
+            body.addComponent(button);
+            button.addListener((Button b) -> {
+                checkListener(item.element0(), auction_mechanism);
+            });
+        }
+        
+        if(offset > 0) {
+            Button prev_button = new Button("Prev");
+            body.addComponent(prev_button);
+        
+            prev_button.addListener((Button b) -> {
+                createSearchPage(list, offset - MainPage.PAGE_SIZE, auction_mechanism, idx);
+            });
+        } else {
+            body.addComponent(new Label(" "));
+        }
+
+        body.addComponent(new Label(" "));
+
+        if(index == 'z' && offset + MainPage.PAGE_SIZE > list.size()) {
+            body.addComponent(new Label(" "));    
+        } else {
+            Button next_button = new Button("Next");
+            body.addComponent(next_button);
+        
+            next_button.addListener((Button b) -> {
+                createSearchPage(list, offset + MainPage.PAGE_SIZE, auction_mechanism, idx);
+            });
+        }       
+    }
+
 }
+    
