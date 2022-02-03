@@ -3,18 +3,22 @@ package it.unisa.studenti.bruno.auction;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 import it.unisa.studenti.bruno.auction.utilities.Auction;
+import it.unisa.studenti.bruno.auction.utilities.Bid;
+import it.unisa.studenti.bruno.auction.utilities.Message;
 import it.unisa.studenti.bruno.auction.utilities.Pair;
 import it.unisa.studenti.bruno.auction.utilities.State;
+import it.unisa.studenti.bruno.auction.utilities.Type;
 import it.unisa.studenti.bruno.auction.utilities.User;
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.PeerBuilderDHT;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.futures.FutureBootstrap;
+import net.tomp2p.futures.FutureDirect;
 import net.tomp2p.p2p.Peer;
 import net.tomp2p.p2p.PeerBuilder;
 import net.tomp2p.peers.Number160;
@@ -26,13 +30,13 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     private final Peer peer;
 	private final PeerDHT _dht;
 	private final int DEFAULT_MASTER_PORT = 4000;
-    private final String GLOBAL_AUCTIONS_LIST = "GLOBAL_AUCTION_MECHANISM";
+    private final String GLOBAL_AUCTIONS_LIST = "GLOBAL_AUCTION_MECHANISM" + Number160.createHash("GLOBAL_AUCTION_MECHANISM");
     public User user;
 
     public final List<String> my_auctions_list = new ArrayList<>();
     public final List<Pair<String, String>> my_bidder_list = new ArrayList<>();
 
-    public AuctionMechanismImpl(int _id, String _master_peer, final MessageListener _listener) throws Exception {
+    public AuctionMechanismImpl(int _id, String _master_peer) throws Exception {
         peer = new PeerBuilder(Number160.createHash(_id)).ports(DEFAULT_MASTER_PORT + _id).start();
         _dht = new PeerBuilderDHT(peer).start();
         
@@ -48,10 +52,21 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         peer.objectDataReply(new ObjectDataReply() {
 			
 			public Object reply(PeerAddress sender, Object request) throws Exception {
-				return _listener.parseMessage(request);
+				return null;
 			}
             
 		});
+    }
+
+    public void setMessageListener(final MessageListener _listener) {
+        peer.objectDataReply(new ObjectDataReply() {
+
+            @Override
+            public Object reply(PeerAddress sender, Object request) throws Exception {
+                return _listener.parseMessage(request);
+            }
+            
+        });
     }
 
     
@@ -141,7 +156,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
 
                     int pos = binarySearch(auctions_list, _auction_name);
                     if(pos == - 1) pos = 0;
-                    auctions_list.add(pos, new Pair<String,String>(_auction_name, user._username));
+                    auctions_list.add(pos, new Pair<>(_auction_name, user._username));
                     _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
                 }
 
@@ -155,7 +170,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 } else {
                     list = new ArrayList<>();
                 }
-                list.add(new Pair<String,String>(_auction_name, user._username));
+                list.add(new Pair<>(_auction_name, user._username));
                 _dht.put(my_list_key).data(new Data(list)).start().awaitUninterruptibly();
                 my_auctions_list.add(_auction_name);
 
@@ -213,7 +228,31 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 if(deleted_user != null) {
                     if(deleted_user.equals(user._username))
                         return null;
-                    // TODO: Invio di una notifica all'utente escluso e cancellare la pair dalla sua auction_list
+                    futureGet = _dht.get(Number160.createHash(deleted_user)).start();
+                    futureGet.awaitUninterruptibly();
+                    if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                        User removed_user = (User) futureGet.data().object();
+                        if(removed_user._peer_address != null) {
+                            // Sends a notification if the peer_address is set
+                            FutureDirect futureDirect = _dht.peer().sendDirect(removed_user._peer_address).object(new Message(Type.REJECTED, _auction_name)).start();
+						    futureDirect.awaitUninterruptibly();
+                        }
+
+                        // Updates bidder list of removed_user
+                        Number160 user_key = generateUserKey(removed_user._username);
+                        futureGet = _dht.get(user_key).start();
+                        futureGet.awaitUninterruptibly();
+                        if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                            List<Pair<String, String>> list = (List<Pair<String, String>>) futureGet.data().object();
+                            for(int i = 0; i < list.size(); i++)
+                                if(list.get(i).element0().equals(_auction_name)) {
+                                    list.remove(i);
+                                    break;
+                                }
+
+                            _dht.put(user_key).data(new Data(list)).start().awaitUninterruptibly();
+                        }
+                    }
                 }
                 
                 // Updates the auction with a new bid
@@ -229,9 +268,9 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 } else {
                     list = new ArrayList<>();
                 }
-                list.add(new Pair<String, String>(_auction_name, auction._author));
+                list.add(new Pair<>(_auction_name, auction._author));
                 _dht.put(my_list_key).data(new Data(list)).start().awaitUninterruptibly();
-                my_bidder_list.add(new Pair<String, String>(_auction_name, auction._author));
+                my_bidder_list.add(new Pair<>(_auction_name, auction._author));
 
                 return auction;
             }
@@ -280,8 +319,10 @@ public class AuctionMechanismImpl implements AuctionMechanism {
 
     public boolean leaveNetwork() {
         try {
-            user._peer_address = null;
-            _dht.put(Number160.createHash(user._username)).data(new Data(user)).start().awaitUninterruptibly();
+            if(user != null) {
+                user._peer_address = null;
+                _dht.put(Number160.createHash(user._username)).data(new Data(user)).start().awaitUninterruptibly();
+            }
             user = null;
         } catch (Exception e) {
             e.printStackTrace();
@@ -294,8 +335,6 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     @SuppressWarnings("unchecked")
     private boolean checkAndUpdateState(Auction auction) throws Exception {
         if(!isAValidDate(auction._end_time) && auction._auction_state == State.AVAILABLE) {
-            // TODO: Bisogna inviare delle notifiche (le notifiche di fine asta)
-            
             auction._auction_state = State.CLOSED;
             _dht.put(Number160.createHash(auction._auction_name)).data(new Data(auction)).start().awaitUninterruptibly();
             
@@ -315,6 +354,37 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 if(pos != -1 && auctions_list.get(pos).element0().equals(auction._auction_name))    // To be sure to remove the right auction 
                     auctions_list.remove(pos);
                 _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
+
+                // Notification to the owner
+                String author = auction._author;
+                futureGet = _dht.get(Number160.createHash(author)).start();
+                futureGet.awaitUninterruptibly();
+                if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                    User owner = (User) futureGet.data().object();
+                    if(owner._peer_address != null) {
+                        // Sends a notification if the peer_address is set
+                        FutureDirect futureDirect = _dht.peer().sendDirect(owner._peer_address).object(new Message(Type.END_OWNER, auction._auction_name, auction._bid_list.size())).start();
+                        futureDirect.awaitUninterruptibly();
+                    }
+                }
+
+                // Notification to the bidders
+                for(int i = 0; i < auction._bid_list.size(); i++) {
+                    Bid bid = auction._bid_list.get(i);
+                    futureGet = _dht.get(Number160.createHash(bid._bid_owner)).start();
+                    futureGet.awaitUninterruptibly();
+                    if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                        User bidder = (User) futureGet.data().object();
+                        if(bidder._peer_address != null) {
+                            // Sends a notification if the peer_address is set
+                            // Calculates the price to pay for each bidder
+                            double bidder_value_to_pay = (i == auction._bid_list.size() - 1) ? auction._reserved_price : auction._bid_list.get(i + 1)._bid_value;
+                            FutureDirect futureDirect = _dht.peer().sendDirect(bidder._peer_address).object(new Message(Type.END_BIDDER, auction._auction_name, bidder_value_to_pay)).start();
+                            futureDirect.awaitUninterruptibly();
+                        }
+                    }
+                }
+
             }
 
             return false;
@@ -351,8 +421,14 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     }
 
     private boolean isAValidDate(Date date) {
-        Date current = Calendar.getInstance().getTime();
-        return date.after(current);
+        Calendar current = Calendar.getInstance(TimeZone.getTimeZone("Europe/Rome"));
+        Calendar c_date = Calendar.getInstance(TimeZone.getTimeZone("Europe/Rome"));
+        c_date.setTime(date);
+        return c_date.after(current);
+    }
+
+    private Number160 generateUserKey(String username) {
+        return Number160.createHash(username + Number160.createHash(username));
     }
 
 }

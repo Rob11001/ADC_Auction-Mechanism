@@ -8,6 +8,7 @@ import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
+import com.googlecode.lanterna.terminal.swing.TerminalEmulatorAutoCloseTrigger;
 
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -24,13 +25,14 @@ public class App {
     public static void main(String[] args) {
         App app = new App();
         final CmdLineParser parser = new CmdLineParser(app); 
-        DefaultTerminalFactory defaultTerminalFactory = new DefaultTerminalFactory(); 
+        DefaultTerminalFactory defaultTerminalFactory = new DefaultTerminalFactory();
+        defaultTerminalFactory.setTerminalEmulatorFrameAutoCloseTrigger(TerminalEmulatorAutoCloseTrigger.CloseOnExitPrivateMode); 
         MultiWindowTextGUI gui = null;
 
         try {
             parser.parseArgument(args);
             // Peer creation
-            AuctionMechanismImpl auction_mechanism = new AuctionMechanismImpl(id, master, new MessageListenerImpl());
+            AuctionMechanismImpl auction_mechanism = new AuctionMechanismImpl(id, master);
             // UI initialization
             Terminal terminal = defaultTerminalFactory.createTerminal();
             Screen screen = new TerminalScreen(terminal);
