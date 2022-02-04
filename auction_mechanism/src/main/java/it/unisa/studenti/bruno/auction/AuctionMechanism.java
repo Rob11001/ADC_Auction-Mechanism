@@ -43,6 +43,10 @@ public interface AuctionMechanism {
 	 */
 	public boolean login(String username, String password);
 
+	/**
+	 * Allows user to logout from the system
+	 * @return true if the operation goes well, false otherwise
+	 */
 	public boolean logout();
 	
 	/**
@@ -50,6 +54,7 @@ public interface AuctionMechanism {
 	 * @param _auction_name a String, the name identify the auction.
 	 * @param _end_time a Date that is the end time of an auction.
 	 * @param _reserved_price a double value that is the reserve minimum pricing selling.
+	 * @param _num_products a int value that is the number of products. 
 	 * @param _description a String describing the selling goods in the auction.
 	 * @return true if the auction is correctly created, false otherwise.
 	 */
@@ -58,7 +63,7 @@ public interface AuctionMechanism {
 	/**
 	 * Checks the status of the auction.
 	 * @param _auction_name a String, the name of the auction.
-	 * @return a String value that is the status of the auction.
+	 * @return the auction with the passed _auction_name or null if it doesn't exist.
 	 */
 	public Auction checkAuction(String _auction_name);
 	
@@ -66,11 +71,15 @@ public interface AuctionMechanism {
 	 * Places a bid for an auction if it is not already ended.
 	 * @param _auction_namea a String, the name of the auction.
 	 * @param _bid_amount a double value, the bid for an auction.
-	 * @return a String value that is the status of the auction.
+	 * @return the updated auction.
 	 */
 	public Auction placeAbid(String _auction_name, double _bid_amount);
 	
-
+	/**
+	 * Gets the list of open auctions which begins with index character
+	 * @param index a Character value which represents the first character of the auctions returned
+	 * @return a list of pair<auction name, author name> in which all auction names start with index
+	 */
 	public List<Pair<String, String>> getListOfAuctions(Character index);
 	
 }

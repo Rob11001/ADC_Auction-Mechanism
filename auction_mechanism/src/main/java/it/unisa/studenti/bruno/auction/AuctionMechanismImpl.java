@@ -58,6 +58,10 @@ public class AuctionMechanismImpl implements AuctionMechanism {
 		});
     }
 
+    /**
+     * Sets a new MessageListener
+     * @param _listener the MessageLister to set
+     */
     public void setMessageListener(final MessageListener _listener) {
         peer.objectDataReply(new ObjectDataReply() {
 
@@ -102,10 +106,12 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                     _dht.put(Number160.createHash(_username)).data(new Data(user)).start().awaitUninterruptibly();
                     
                     // Gets user's auctions saved as a list of pairs (auction_name, author_name)
-                    futureGet = _dht.get(Number160.createHash(_username + Number160.createHash(_username))).start();
+                    futureGet = _dht.get(generateUserKey(_username)).start();
                     futureGet.awaitUninterruptibly();
                     if(futureGet.isSuccess()) {
                         if(futureGet.isEmpty()) return true;
+                        
+                        // Updates my_bidder_list and my_auctions_list
                         List<Pair<String, String>> auctions = (List<Pair<String, String>>) futureGet.data().object();
                         for(Pair<String, String> auction : auctions) {
                             if(auction.element1().equals(_username))
@@ -131,12 +137,12 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     public boolean createAuction(String _auction_name, Date _end_time, double _reserved_price, int _num_products, String _description) {
         if(user == null) return false;
         try {
-            Auction auction = new Auction(_auction_name, user._username, _description, _num_products, _reserved_price, _end_time);
             FutureGet futureGet = _dht.get(Number160.createHash(_auction_name)).start();
             futureGet.awaitUninterruptibly();
             // Checks if the auction doesn't exist
             if(futureGet.isSuccess() && futureGet.isEmpty()) {
                 // Auction creation
+                Auction auction = new Auction(_auction_name, user._username, _description, _num_products, _reserved_price, _end_time);
                 _dht.put(Number160.createHash(_auction_name)).data(new Data(auction)).start().awaitUninterruptibly();
                 
                 // Updates user's auctions list and global auctions list
@@ -154,6 +160,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                         auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
                     }
 
+                    // Finds the position in which needs to be placed the new auction
                     int pos = binarySearch(auctions_list, _auction_name);
                     if(pos == - 1) pos = 0;
                     auctions_list.add(pos, new Pair<>(_auction_name, user._username));
@@ -161,7 +168,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 }
 
                 // user's auctions list update
-                Number160 my_list_key = Number160.createHash(user._username + Number160.createHash(user._username));
+                Number160 my_list_key = generateUserKey(user._username);
                 futureGet = _dht.get(my_list_key).start();
                 futureGet.awaitUninterruptibly();
                 List<Pair<String, String>> list;
@@ -226,8 +233,9 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 
                 String deleted_user = auction.placeAbid(_bid_amount, user._username);
                 if(deleted_user != null) {
-                    if(deleted_user.equals(user._username))
-                        return null;
+                    if(deleted_user.equals(user._username)) return null;    // The current user cannot place the bid
+
+                    // An user has been excluded 
                     futureGet = _dht.get(Number160.createHash(deleted_user)).start();
                     futureGet.awaitUninterruptibly();
                     if(futureGet.isSuccess() && !futureGet.isEmpty()) {
@@ -259,7 +267,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 _dht.put(Number160.createHash(_auction_name)).data(new Data(auction)).start().awaitUninterruptibly();                
                 
                 // Updates the bidder_list of the user both locally and in DHT
-                Number160 my_list_key = Number160.createHash(user._username + Number160.createHash(user._username));
+                Number160 my_list_key = generateUserKey(user._username);
                 futureGet = _dht.get(my_list_key).start();
                 futureGet.awaitUninterruptibly();
                 List<Pair<String, String>> list;
@@ -289,9 +297,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
             FutureGet futureGet = _dht.get(Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(index))).start();
             futureGet.awaitUninterruptibly();
             if(futureGet.isSuccess() && !futureGet.isEmpty()) {
-                List<Pair<String, String>> list = (List<Pair<String, String>>) futureGet.data().object();
-                
-                return list;
+                return ((List<Pair<String, String>>) futureGet.data().object());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -317,6 +323,10 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         return false;
     }
 
+    /**
+     * Allows the peer to leave the network
+     * @return a boolean value which represents the result of the operation
+     */
     public boolean leaveNetwork() {
         try {
             if(user != null) {
@@ -332,6 +342,12 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         return true;
     }
 
+    /**
+     * Checks if the date of the auction is still valid, and if it's not, it updates the auction status
+     * @param auction the Auction to check
+     * @return true if the auction date is valid, false otherwise
+     * @throws Exception
+     */
     @SuppressWarnings("unchecked")
     private boolean checkAndUpdateState(Auction auction) throws Exception {
         if(!isAValidDate(auction._end_time) && auction._auction_state == State.AVAILABLE) {
@@ -343,6 +359,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
             FutureGet futureGet =_dht.get(global_list_key).start();
             futureGet.awaitUninterruptibly();
             if(futureGet.isSuccess()) {
+                // Removes the auction from the global list
                 List<Pair<String, String>> auctions_list;
                 if(futureGet.isEmpty()) {
                     auctions_list = new ArrayList<>();
@@ -393,6 +410,13 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         return true;
     }
 
+    /**
+     * Searches the specified key in the list of pair
+     * @param list a list of pair <String, String>
+     * @param key a String which represents the key
+     * @return -1 if the list is empy, the pos of the key in the list if the key is in the list or if it is not in the list
+     *          the pos representing the position that the key should occupy in the list (in the sorted list)
+     */
     private int binarySearch(List<Pair<String, String>> list, String key) {
         int len = list.size();
         if(len == 0) return -1;
@@ -420,6 +444,11 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         }   
     }
 
+    /**
+     * Checks if the date passed is after the current date
+     * @param date a Date object
+     * @return true if the date passed is after the current date, false otherwise
+     */
     private boolean isAValidDate(Date date) {
         Calendar current = Calendar.getInstance(TimeZone.getTimeZone("Europe/Rome"));
         Calendar c_date = Calendar.getInstance(TimeZone.getTimeZone("Europe/Rome"));
@@ -427,6 +456,11 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         return c_date.after(current);
     }
 
+    /**
+     * Generates the hash for the user's auctions list
+     * @param username a String representing the user's username
+     * @return the Number160 representing the hash for the user's auctions list
+     */
     private Number160 generateUserKey(String username) {
         return Number160.createHash(username + Number160.createHash(username));
     }

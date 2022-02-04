@@ -21,10 +21,13 @@ public class MessageListenerImpl implements MessageListener {
             _notify_panel.removeAllComponents();
             _notify_panel.addComponent(new Label("Updates: "));
         }
+
         String str_msg = "";
+        // The type of notification to generate depending on message type
         switch (msg._type) {
             case REJECTED:
                 str_msg = String.format("- Your bid for the auction \"%s\" has been replaced", msg._auction_name);
+                // Updates my_bidder_list
                 for(int i = 0; i < auction_mech.my_bidder_list.size(); i++) {
                     if(auction_mech.my_bidder_list.get(i).element0().equals(msg._auction_name)) {
                         auction_mech.my_bidder_list.remove(i);

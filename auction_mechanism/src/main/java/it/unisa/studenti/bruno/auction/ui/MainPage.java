@@ -42,9 +42,12 @@ public class MainPage extends BasicWindow {
         
         // Menubar
         MenuBar menubar = new MenuBar();
+
         // "User" menu
         Menu _menu_user = new Menu("User");
         menubar.add(_menu_user);
+        // "User" menu options
+        // My list listener
         _menu_user.add(new MenuItem("My list", () -> {
             if(auction_mechanism.my_auctions_list.isEmpty()) {
                 body.removeAllComponents();
@@ -69,6 +72,7 @@ public class MainPage extends BasicWindow {
             }
         }));
 
+        // My bids listener
         _menu_user.add(new MenuItem("My bids", () -> {
             if(auction_mechanism.my_bidder_list.isEmpty()) {
                 body.removeAllComponents();
@@ -102,6 +106,7 @@ public class MainPage extends BasicWindow {
 
         }));
 
+        // Logout listener
         _menu_user.add(new MenuItem("Logout", () -> {
             try {
                 if(auction_mechanism.logout()) {
@@ -127,58 +132,62 @@ public class MainPage extends BasicWindow {
         Menu _menu_auctions = new Menu("Auctions");
         menubar.add(_menu_auctions);
 
+        // Create listener
         _menu_auctions.add(new MenuItem("Create", () -> {
             body.removeAllComponents();
             body.setLayoutManager(new GridLayout(2));
             
             // Auction info
             body.addComponent(new Label("Auction name: "));
-            TextBox auction_name_box = new TextBox().setValidationPattern(Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,29}"));
-            body.addComponent(auction_name_box);
+            TextBox auction_name_box = new TextBox()
+                .setValidationPattern(Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,29}"))
+                .addTo(body);
 
             body.addComponent(new Label("Description: "));
-            TextBox description_box = new TextBox("", Style.MULTI_LINE);
-            body.addComponent(description_box);
-
+            TextBox description_box = new TextBox("", Style.MULTI_LINE)
+                .addTo(body);
+            
             body.addComponent(new Label("Number of products: "));
-            TextBox num_products_box = new TextBox(new TerminalSize(4, 1)).setValidationPattern(Pattern.compile("[1-9][0-9]*"));
-            body.addComponent(num_products_box);
+            TextBox num_products_box = new TextBox(new TerminalSize(4, 1))
+                .setValidationPattern(Pattern.compile("[1-9][0-9]*"))
+                .addTo(body);
 
             body.addComponent(new Label("Reserved price: "));
-            TextBox reserved_price_box = new TextBox(new TerminalSize(6, 1)).setValidationPattern(Pattern.compile("[1-9][0-9]*"));
-            body.addComponent(reserved_price_box);
+            TextBox reserved_price_box = new TextBox(new TerminalSize(6, 1))
+                .setValidationPattern(Pattern.compile("[1-9][0-9]*"))
+                .addTo(body);
 
             Panel end_time_panel = new Panel(new GridLayout(9));
             body.addComponent(new Label("End time (yyyy-mm-dd hh:mm): "));
             TextBox year_box = new TextBox(new TerminalSize(5, 1))
-                .setValidationPattern(Pattern.compile("[0-9]*"));
-            end_time_panel.addComponent(year_box);
+                .setValidationPattern(Pattern.compile("[0-9]*"))
+                .addTo(end_time_panel);
             end_time_panel.addComponent(new Label("-"));
 
-            TextBox mounth_box = new TextBox(new TerminalSize(3, 1))
-                .setValidationPattern(Pattern.compile("[0-9]*"));
-            end_time_panel.addComponent(mounth_box);
+            TextBox month_box = new TextBox(new TerminalSize(3, 1))
+                .setValidationPattern(Pattern.compile("[0-9]*"))
+                .addTo(end_time_panel);
             end_time_panel.addComponent(new Label("-"));
 
             TextBox day_box = new TextBox(new TerminalSize(3, 1))
-                .setValidationPattern(Pattern.compile("[0-9]*"));
-            end_time_panel.addComponent(day_box);
+                .setValidationPattern(Pattern.compile("[0-9]*"))
+                .addTo(end_time_panel);
             end_time_panel.addComponent(new Label(" "));
             
             TextBox hour_box = new TextBox(new TerminalSize(3, 1))
-                .setValidationPattern(Pattern.compile("[0-9]*"));
-            end_time_panel.addComponent(hour_box);
+                .setValidationPattern(Pattern.compile("[0-9]*"))
+                .addTo(end_time_panel);
             end_time_panel.addComponent(new Label(":"));
 
             TextBox min_box = new TextBox(new TerminalSize(3, 1))
-                .setValidationPattern(Pattern.compile("[0-9]*"));
-            end_time_panel.addComponent(min_box);
+                .setValidationPattern(Pattern.compile("[0-9]*"))
+                .addTo(end_time_panel);
 
             body.addComponent(end_time_panel);
 
             // Create button
-            Button create_button = new Button("Create");
-            body.addComponent(create_button);
+            Button create_button = new Button("Create").addTo(body);
+
             create_button.addListener((Button button) -> {
                 String auction_name = auction_name_box.getText();
                 String description = description_box.getText();
@@ -186,7 +195,7 @@ public class MainPage extends BasicWindow {
                 String num_products = num_products_box.getText();
                 String reserved_price = reserved_price_box.getText();
                 String year = year_box.getText();
-                String month = mounth_box.getText();
+                String month = month_box.getText();
                 String dd = day_box.getText();
                 String hh = hour_box.getText();
                 String mm = min_box.getText();
@@ -229,8 +238,8 @@ public class MainPage extends BasicWindow {
             });
 
             // Cancel button
-            Button cancel_button = new Button("Cancel");
-            body.addComponent(cancel_button);
+            Button cancel_button = new Button("Cancel").addTo(body);
+
             cancel_button.addListener((Button button) -> {
                 menubar.setVisible(true);
                 body.removeAllComponents();
@@ -240,24 +249,24 @@ public class MainPage extends BasicWindow {
             body.setSize(getPreferredSize());      
         }));
 
+        // Search listener
         _menu_auctions.add(new MenuItem("Search", () -> {
             body.removeAllComponents();
             body.setLayoutManager(new GridLayout(2));
 
             body.addComponent(new Label("Auction name: "));
-            TextBox search_box = new TextBox().setValidationPattern(Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,29}"));
-            body.addComponent(search_box);
-            
+            TextBox search_box = new TextBox()
+                .setValidationPattern(Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,29}"))
+                .addTo(body);
+
             // Cancel button
-            Button cancel_button = new Button("Cancel");
-            body.addComponent(cancel_button);
+            Button cancel_button = new Button("Cancel").addTo(body);
             cancel_button.addListener((Button button) -> {
                 body.removeAllComponents();
             });
-            body.addComponent(cancel_button);
 
             // Search button
-            Button search_button = new Button("Search");
+            Button search_button = new Button("Search").addTo(body);
             search_button.addListener((Button s_button) -> {
                 if(search_box.getText().length() == 0) {
                     // Error message
@@ -268,11 +277,10 @@ public class MainPage extends BasicWindow {
 
                 checkListener(search_box.getText(), auction_mechanism);
             });
-            body.addComponent(search_button);
-
             
         }));
 
+        // All auctions listener
         _menu_auctions.add(new MenuItem("All auctions", () -> {
             body.removeAllComponents();
             char index = 'a';
@@ -280,15 +288,17 @@ public class MainPage extends BasicWindow {
             createSearchPage(list, 0, auction_mechanism, index);
         }));
 
-         // "Notifications" menu
+        // "Notifications" menu
         Menu _menu_notify = new Menu("Notifications");
         menubar.add(_menu_notify);
 
+        // Clean listener
         _menu_notify.add(new MenuItem("Clean", () -> {
             notify_panel.removeAllComponents();
             notify_panel.addComponent(new Label("Updates: "));
         }));
- 
+        
+        // Set Menubar
         this.setMenuBar(menubar);
 
         // Body component
@@ -341,13 +351,13 @@ public class MainPage extends BasicWindow {
 
         body.removeAllComponents();
         body.setLayoutManager(new GridLayout(1));
-                    
-        Panel auction_info_panel = new Panel(new GridLayout(2));
-        body.addComponent(auction_info_panel);
-                    
-        Panel bids_panel = new Panel(new GridLayout(2));
-        body.addComponent(bids_panel);
-
+        
+        // Auction info
+        Panel auction_info_panel = new Panel(new GridLayout(2)).addTo(body);
+        // Bid info            
+        Panel bids_panel = new Panel(new GridLayout(2)).addTo(body);
+        
+        // Auction information
         auction_info_panel.addComponent(new Label("Auction name: "));
         auction_info_panel.addComponent(new Label(auction._auction_name));
 
@@ -367,11 +377,17 @@ public class MainPage extends BasicWindow {
         Date date = auction._end_time;
         Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("Europe/Rome"));
         calendar.setTime(date);
-        auction_info_panel.addComponent(new Label(String.format("%d-%02d-%02d %02d:%02d", calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH), calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE))));
+        auction_info_panel.addComponent(new Label(String.format("%d-%02d-%02d %02d:%02d", calendar.get(Calendar.YEAR), 
+            calendar.get(Calendar.MONTH) + 1, 
+            calendar.get(Calendar.DAY_OF_MONTH), 
+            calendar.get(Calendar.HOUR_OF_DAY), 
+            calendar.get(Calendar.MINUTE)
+        )));
 
         auction_info_panel.addComponent(new Label("Auction status: "));
         auction_info_panel.addComponent(new Label(auction._auction_state == State.AVAILABLE ? "Open" : "Closed"));
         
+        // bid list is not empty we add bid list information
         if(!auction._bid_list.isEmpty()) {
             bids_panel.addComponent(new Label("Bids:"));
             Panel list = new Panel(new GridLayout(2));
@@ -383,12 +399,15 @@ public class MainPage extends BasicWindow {
         }
                     
         // "Place a bid" button
+        // If auction is still valid and we are not the author of the auction
+        // TODO: we can check also that we have not already a bid for the auction
         if(auction._auction_state == State.AVAILABLE && !auction._author.equals(auction_mechanism.user._username)) {
-            Panel place_a_bid_panel = new Panel(new GridLayout(2));
-            TextBox bid_box = new TextBox().setValidationPattern(Pattern.compile("[0-9]*"));
-            place_a_bid_panel.addComponent(bid_box);
-            Button place_a_bid_button = new Button("Place a bid");
-            place_a_bid_panel.addComponent(place_a_bid_button);
+            Panel place_a_bid_panel = new Panel(new GridLayout(2)).addTo(body);
+            TextBox bid_box = new TextBox()
+                .setValidationPattern(Pattern.compile("[0-9]*"))
+                .addTo(place_a_bid_panel);
+            Button place_a_bid_button = new Button("Place a bid").addTo(place_a_bid_panel);
+
             // Listener for "place a bid" action
             place_a_bid_button.addListener((Button b) -> {
                 String bid_text = bid_box.getText();
@@ -401,8 +420,9 @@ public class MainPage extends BasicWindow {
                     Auction v = auction_mechanism.placeAbid(auction._auction_name, bid_value);
                     if(v != null) {
                         MessageDialog.showMessageDialog(this.getTextGUI(), "Success", "Bid placed");
-                        bids_panel.removeAllComponents();
                         
+                        // Updates the bid panel
+                        bids_panel.removeAllComponents();
                         bids_panel.addComponent(new Label("Bids:"));
                         Panel list = new Panel(new GridLayout(2));
                         for (Bid bid : v._bid_list) {
@@ -419,7 +439,6 @@ public class MainPage extends BasicWindow {
                 // Error Message
                 MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "You cannot place a bid");
             });
-            body.addComponent(place_a_bid_panel);
         }
     }
 
@@ -430,26 +449,27 @@ public class MainPage extends BasicWindow {
         body.addComponent(createTitleLabel("Author"));
         body.addComponent(new Label(" "));
 
+        // Calls getListOfAuctions until it reaches a minum number of auctions to show or it retreived all available auctions
         while(list.size() < offset + MainPage.PAGE_SIZE && index != 'z') {
             index = (char) (index + 1); 
             list.addAll(auction_mechanism.getListOfAuctions(index));
         }
         final char idx = index;
 
+        // Shows current page of auctions
         for (int i = offset; i < list.size() && i < offset + MainPage.PAGE_SIZE; i++) {
             Pair<String, String> item = list.get(i);
             body.addComponent(new Label(item.element0()));
             body.addComponent(new Label(item.element1()));
-            Button button = new Button("Check");
-            body.addComponent(button);
+            Button button = new Button("Check").addTo(body);
             button.addListener((Button b) -> {
                 checkListener(item.element0(), auction_mechanism);
             });
         }
         
         if(offset > 0) {
-            Button prev_button = new Button("Prev");
-            body.addComponent(prev_button);
+            // Prev button
+            Button prev_button = new Button("Prev").addTo(body);
         
             prev_button.addListener((Button b) -> {
                 createSearchPage(list, offset - MainPage.PAGE_SIZE, auction_mechanism, idx);
@@ -463,8 +483,8 @@ public class MainPage extends BasicWindow {
         if(index == 'z' && offset + MainPage.PAGE_SIZE > list.size()) {
             body.addComponent(new Label(" "));    
         } else {
-            Button next_button = new Button("Next");
-            body.addComponent(next_button);
+            // Next button
+            Button next_button = new Button("Next").addTo(body);
         
             next_button.addListener((Button b) -> {
                 createSearchPage(list, offset + MainPage.PAGE_SIZE, auction_mechanism, idx);

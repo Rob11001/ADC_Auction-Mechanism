@@ -15,9 +15,6 @@ import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.TextBox;
 import com.googlecode.lanterna.gui2.WindowBasedTextGUI;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
-import com.googlecode.lanterna.gui2.menu.Menu;
-import com.googlecode.lanterna.gui2.menu.MenuBar;
-import com.googlecode.lanterna.gui2.menu.MenuItem;
 
 import it.unisa.studenti.bruno.auction.AuctionMechanismImpl;
 
@@ -34,16 +31,19 @@ public class IndexPage extends BasicWindow {
         // Login panel creation
         Panel login_panel = new Panel(new GridLayout(1));
         
+        // Username
         login_panel.addComponent(new Label("Username: "));
         _username_box = new TextBox()
             .setValidationPattern(Pattern.compile(_username_regex))
             .addTo(login_panel);
         
-            login_panel.addComponent(new Label("Password: "));
+        // Password
+        login_panel.addComponent(new Label("Password: "));
         _password_box = new TextBox()
             .setValidationPattern(Pattern.compile(_password_regex))
             .addTo(login_panel);
         
+        // Buttons
         Panel button_panel = new Panel(new GridLayout(2));
         _login_button = new Button("Login").addTo(button_panel);
         _register_button = new Button("Register").addTo(button_panel);
@@ -56,12 +56,12 @@ public class IndexPage extends BasicWindow {
             
         // Sets the listeners
         _login_button.addListener((button) -> {
+            // Login listener
             String username = this._username_box.getText();
             String password = this._password_box.getText();
             
             try {
                 if(username.length() > 0 && password.length() > 0 && auction_mechanism.login(username, password)) {
-                    // vedere cosa fare
                     WindowBasedTextGUI wbtGUI = this.getTextGUI().removeWindow(this);
                     this.close();
                     MainPage main_page = new MainPage(auction_mechanism);
@@ -80,6 +80,7 @@ public class IndexPage extends BasicWindow {
         });
 
         _register_button.addListener((button) -> {
+            // Register listener
             String username = this._username_box.getText();
             String password = this._password_box.getText();
             
@@ -97,10 +98,5 @@ public class IndexPage extends BasicWindow {
             // Error Message
             MessageDialog.showMessageDialog(this.getTextGUI(), "Error", "Invalid username");
         });
-    
-    
-    
     }
-
-
 }
