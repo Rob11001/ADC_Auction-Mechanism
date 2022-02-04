@@ -52,7 +52,7 @@ public class AuctionMechanismImpl implements AuctionMechanism {
         peer.objectDataReply(new ObjectDataReply() {
 			
 			public Object reply(PeerAddress sender, Object request) throws Exception {
-				return null;
+				return request;
 			}
             
 		});
@@ -213,6 +213,8 @@ public class AuctionMechanismImpl implements AuctionMechanism {
     @Override
     @SuppressWarnings("unchecked")
     public Auction placeAbid(String _auction_name, double _bid_amount) {
+        if(user == null) return null;
+        
         // Need to control that it's not in my_auction_list/bidder_list
         for (Pair<String, String> pair : my_bidder_list)
             if(pair.element0().equals(_auction_name))
@@ -334,8 +336,12 @@ public class AuctionMechanismImpl implements AuctionMechanism {
                 _dht.put(Number160.createHash(user._username)).data(new Data(user)).start().awaitUninterruptibly();
             }
             user = null;
+            my_auctions_list.clear();
+            my_bidder_list.clear();
+
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
         _dht.peer().announceShutdown().start().awaitUninterruptibly();
         
