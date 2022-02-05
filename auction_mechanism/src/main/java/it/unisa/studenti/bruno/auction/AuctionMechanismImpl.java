@@ -441,13 +441,13 @@ public class AuctionMechanismImpl implements AuctionMechanism {
             }
         }
 
-        if (list.get(i).element0().compareTo(key) <= 0 && list.get(j).element0().compareTo(key) >= 0) {
-            return j;
-        } else if(list.get(i).element0().compareTo(key) < 0) {
+        if(key.compareTo(list.get(i).element0()) <= 0) {
             return i;
+        } else if(key.compareTo(list.get(j).element0()) <= 0) {
+            return j;
         } else {
             return j + 1;
-        }   
+        }
     }
 
     /**

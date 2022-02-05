@@ -1,9 +1,15 @@
 package it.unisa.studenti.bruno.auction;
 
 import org.junit.jupiter.api.*;
+
+import it.unisa.studenti.bruno.auction.utilities.Auction;
+import it.unisa.studenti.bruno.auction.utilities.Pair;
+import it.unisa.studenti.bruno.auction.utilities.State;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Date;
+import java.util.List;
 
 
 public class AuctionMechanismImplTest  {
@@ -72,7 +78,7 @@ public class AuctionMechanismImplTest  {
 
 
     @Nested
-    class WorkflowTest {
+    class PostLoginTest {
         @BeforeEach
         void login() {
             peer_1.login("Peer_1", "Peer_1");
@@ -103,9 +109,82 @@ public class AuctionMechanismImplTest  {
             assertFalse(peer_3.createAuction("Auction_3", new Date(), 4.5, 1, "Description"), "The auction creation went well");
         }
 
+        @Test
+        void testCheckAuction() {
+            assertTrue(peer_1.createAuction("Auction_to_check", new Date((new Date()).getTime() + 1000), 10, 2, "Description"), "The auction creation didn't go well");
 
+            Auction a = peer_2.checkAuction("Auction_to_check");
+            assertNotNull(a, "The auction's research didn't go well");
+            assertEquals("Auction_to_check", a._auction_name, "The auction retrieved is the wrong one");
+
+            // Searches an auction which does not exist
+            assertNull(peer_2.checkAuction("Auction_42"), "The auction retrieving went well");
+
+            // Checks if the state of an auction is updated properly
+            assertTrue(peer_1.createAuction("Auction_expired", new Date((new Date()).getTime() - 1000), 10, 2, "Description"), "The auction creation didn't go well");
+            a = peer_2.checkAuction("Auction_expired");
+            assertNotNull(a, "The auction's research didn't go well");
+            assertEquals("Auction_expired", a._auction_name, "The auction retrieved is the wrong one");
+            assertEquals(State.CLOSED, a._auction_state, "The state of the auction is wrong");
+        }
+
+        @Test
+        void testPlaceAbid() {
+            assertTrue(peer_4.createAuction("Auction_Bid", new Date((new Date()).getTime() + 1000), 42, 1, "Description"), "The auction creation didn't go well");
+
+            // Correct case
+            assertNotNull(peer_2.placeAbid("Auction_Bid", 43), "Peer_2 wasn't able to place a bid");
+            assertEquals("Auction_Bid", peer_2.my_bidder_list.get(0).element0(), "peer_2 bid list has not been updated");
+
+            // Bid's value too low to place the bid
+            assertNull(peer_1.placeAbid("Auction_Bid", 0), "Peer_1 was able to place a bid");
+            assertEquals(0, peer_1.my_bidder_list.size(), "Peer_1 bid list has been updated incorrectly");
+
+            // Cannot place a bid for an auction which does not exist
+            assertNull(peer_1.placeAbid("Auctionnnnn", 42.0), "Peer_1 was able to place a bid");
+            assertEquals(0, peer_1.my_bidder_list.size(), "Peer_1 bid list has been updated incorrectly");
+
+            // An user cannot place a bid for his auctions
+            assertNull(peer_4.placeAbid("Auction_Bid", 44), "Peer_4 was able to place a bid");
+            assertEquals(0, peer_4.my_bidder_list.size(), "Peer_4 bid list has been updated incorrectly");
+
+            // An user cannot place another bid for an auction for which his last bid is still "active"
+            assertNull(peer_2.placeAbid("Auction_Bid", 44), "Peer_2 was able to place another bid");
+            assertEquals(1, peer_2.my_bidder_list.size(), "peer_2 bid list has been updated incorrectly");   
+
+            // A bid can be replace by a new one with a greater value 
+            Auction updated_auction = peer_3.placeAbid("Auction_Bid", 100);
+            assertNotNull(updated_auction, "Peer_3 wasn't able to place a bid");
+            assertEquals("Peer_3", updated_auction._bid_list.get(0)._bid_owner, "The bid list of the auction has not been correclty updated");
+
+            // Cannot place a bid for an expired auction
+            assertTrue(peer_4.createAuction("Expired_auction", new Date((new Date()).getTime() - 1000), 10, 1, "Description"), "Peer_4 could not create a new auction");
+            assertNull(peer_1.placeAbid("Expired_auction", 42), "Peer_1 was able to place a bid");
+            assertEquals(0, peer_1.my_bidder_list.size(), "Peer_1 bid list has been updated incorrectly");
+            
+            // Not logged peers cannot place a bid
+            assertTrue(peer_1.logout(), "Peer_1 wasn't able to logout");
+            assertNull(peer_1.placeAbid("Auction_Bid", 101), "peer_1 was able to place a bid incorrectly");
+        }
+
+        @Test
+        void testGetListOfAuctions() {
+            // List of auctions found
+            assertTrue(peer_1.createAuction("Z_0", new Date(), 10, 1, "Description"), "Peer_1 wasn't able to create an auction");
+            assertTrue(peer_2.createAuction("Z_1", new Date(), 10, 1, "Description"), "Peer_2 wasn't able to create an auction");
+            assertTrue(peer_3.createAuction("Z_2", new Date(), 10, 1, "Description"), "Peer_3 wasn't able to create an auction");
+            assertTrue(peer_4.createAuction("Z_3", new Date(), 10, 1, "Description"), "Peer_4 wasn't able to create an auction");
+
+            List<Pair<String, String>> list = peer_1.getListOfAuctions('z');
+            assertEquals(4, list.size(), "List size is incorrect");
+            
+            for(int i = 0; i < 4; i++)
+                assertEquals(String.format("Z_%d", i), list.get(i).element0(), "The list is not properly sorted");
+
+            // No list of auctions found
+            assertEquals(0, peer_4.getListOfAuctions('x').size(), "The list has a size different from zero");
+        }
     }
-
 
     @AfterAll
     static void shutdown() {
