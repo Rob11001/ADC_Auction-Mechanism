@@ -47,6 +47,7 @@ public class AuctionMechanismImplTest  {
 
     @Test
     void testRegister() {
+        // Correct user registration
         assertTrue(peer_1.register("Test", "Test"), "The registration of Peer_1 didn't go well");
         
         // Cannot create two user with the same username
@@ -55,6 +56,7 @@ public class AuctionMechanismImplTest  {
 
     @Test
     void testLogin() {
+        // Correct login
         assertTrue(peer_1.login("Peer_1", "Peer_1"), "The login of Peer_1 didn't go well");
         assertNotNull(peer_1.user, "The user of peer_1 is null");
         
@@ -69,9 +71,9 @@ public class AuctionMechanismImplTest  {
 
     @Test
     void testLogout() {
+        // Correct logout
         assertTrue(peer_1.login("Peer_1", "Peer_1"), "The login of Peer_1 didn't go well");
         assertNotNull(peer_1.user, "The user of peer_1 is null");
-
         assertTrue(peer_1.logout(), "The logout of Peer_1 didn't go well");
         assertNull(peer_1.user, "The user of peer_1 is not null");
     }
@@ -97,6 +99,7 @@ public class AuctionMechanismImplTest  {
 
         @Test
         void testCreateAuction() {
+            // Correct auction creation
             assertTrue(peer_1.createAuction("Auction_1", new Date(), 4.2, 10, "Description"), "The auction creation didn't go well");
             assertEquals("Auction_1", peer_1.my_auctions_list.get(0), "The peer_1 didn't update its auctions list");
 
@@ -111,8 +114,8 @@ public class AuctionMechanismImplTest  {
 
         @Test
         void testCheckAuction() {
+            // Correct check auction call
             assertTrue(peer_1.createAuction("Auction_to_check", new Date((new Date()).getTime() + 1000), 10, 2, "Description"), "The auction creation didn't go well");
-
             Auction a = peer_2.checkAuction("Auction_to_check");
             assertNotNull(a, "The auction's research didn't go well");
             assertEquals("Auction_to_check", a._auction_name, "The auction retrieved is the wrong one");
