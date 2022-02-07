@@ -27,12 +27,30 @@ The project has been developed in Java using the [TomP2P](https://tomp2p.net) li
 
 To handle the dependencies and installation has been used Maven, a project management tool.
 
+In addition to provide a simple text-based GUIs has been used the [Lanterna](https://github.com/mabe02/lanterna) library. It's a simple Java library which allows to write easy semi-graphical user interfaces in a text-only environment, very similar to the C library curses. 
+
 # **Solution's Overview**
 
 ## **Project's Structure**
 The project's structure is the following:
 
-![alt text for screen readers](/path/to/image.png "Text to show on mouseover").
+<!-- Project structure image -->
+![](/readme_images/structure.png)
+
+We have the common Maven project layout.
+
+The auction package contains the main class *App*, the interface *AuctionMechanism* and its implementation *AuctionMechanismImpl*, and also the interface *Message Listener* and its implementation *MessageListenerImpl*. 
+
+Then we have two sub-package too:
+- ui
+- utilities.
+The first one contains the classes implemented for create the GUI, the second one a set of utilities classes like *Auction*, *Bid*, *Message*, *User* and others, used to describe the concept of an auction, an user and their features.
+
+All the project's dependencies are expressed in the *pom.xml*:
+<!-- Project's dependencies -->
+![](/readme_images/dependencies.png)
+
+
 
 <!-- LICENSE -->
 
