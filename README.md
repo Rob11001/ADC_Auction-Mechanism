@@ -52,9 +52,8 @@ All the project's dependencies are expressed in the *pom.xml*:
 ![](/readme_images/dependencies.png)
 
 ## **AuctionMechanism**
-The interface implemented is the following:
+The interface implemented for the project is the following:
 ```java
-
 public interface AuctionMechanism {
 	
 	/**
@@ -113,6 +112,259 @@ public interface AuctionMechanism {
 	public List<Pair<String, String>> getListOfAuctions(Character index);	
 }
 ```
+
+It has all the features of the initial interface [AuctionMechanism](https://github.com/spagnuolocarmine/distributedsystems-unisa/blob/master/homework/AuctionMechanism.java) with some additions:
+- a peer can now create an account with which login in the system
+- it's possible to retrieve not only a single auction, but also a list of auctions 
+
+## **AuctionMechanismImpl**
+The core class that handles all P2P interactions is **AuctionMechanismImpl**.
+
+Using the [Publisher/Subscriber Example](https://github.com/spagnuolocarmine/p2ppublishsubscribe) as reference the constructor of the class is very similiar.
+
+```java
+public AuctionMechanismImpl(int _id, String _master_peer) throws Exception {
+        peer = new PeerBuilder(Number160.createHash(_id)).ports(DEFAULT_MASTER_PORT + _id).start();
+        _dht = new PeerBuilderDHT(peer).start();
+        
+        FutureBootstrap fb = peer.bootstrap().inetAddress(InetAddress.getByName(_master_peer)).ports(DEFAULT_MASTER_PORT).start();
+		fb.awaitUninterruptibly();
+		
+        if(fb.isSuccess()) {
+		    peer.discover().peerAddress(fb.bootstrapTo().iterator().next()).start().awaitUninterruptibly();
+        } else { 
+		    throw new Exception("Error in master peer bootstrap.");
+        }
+
+        peer.objectDataReply(new ObjectDataReply() {
+			
+			public Object reply(PeerAddress sender, Object request) throws Exception {
+				return request;
+			}
+            
+		});
+    }
+```
+In fact, it initiates the peer and does the boostrap using a "_master_peer" (a peer who is already in the network).
+
+We can see also that the message listener it's not set in the constructor, but it can be set later with an appropriate setter to give more freedom to the developer.
+
+```java
+/**
+     * Sets a new MessageListener
+     * @param _listener the MessageLister to set
+     */
+    public void setMessageListener(final MessageListener _listener) {
+        peer.objectDataReply(new ObjectDataReply() {
+
+            @Override
+            public Object reply(PeerAddress sender, Object request) throws Exception {
+                return _listener.parseMessage(request);
+            }
+            
+        });
+    }
+```
+
+Every instance of *AuctionMechanismImpl*, in addition to peer instance, keep:
+- an *User* object which represents the current peer (it's null if the peer is not logged in the system)
+- two list of auctions (kept as string) which represents the auctions created by the user and the auctions for which the user has placed a bid
+
+All the needed information are retrieved during the login phase as can see in the snippet below:
+
+```java
+@Override
+    @SuppressWarnings("unchecked")
+    public boolean login(String _username, String _password) {
+        try {
+            FutureGet futureGet = _dht.get(Number160.createHash(_username)).start();
+            futureGet.awaitUninterruptibly();
+            if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                User tmp = (User) futureGet.data().object();
+                if(tmp.checkPassword(Number160.createHash(_password))) {
+                    user = tmp;
+                    user._peer_address = peer.peerAddress();
+                    // Updates User info with his new peerAddress
+                    _dht.put(Number160.createHash(_username)).data(new Data(user)).start().awaitUninterruptibly();
+                    
+                    // Gets user's auctions saved as a list of pairs (auction_name, author_name)
+                    futureGet = _dht.get(generateUserKey(_username)).start();
+                    futureGet.awaitUninterruptibly();
+                    if(futureGet.isSuccess()) {
+                        if(futureGet.isEmpty()) return true;
+                        
+                        // Updates my_bidder_list and my_auctions_list
+                        List<Pair<String, String>> auctions = (List<Pair<String, String>>) futureGet.data().object();
+                        for(Pair<String, String> auction : auctions) {
+                            if(auction.element1().equals(_username))
+                                my_auctions_list.add(auction.element0());
+                            else
+                                my_bidder_list.add(auction);
+                        }
+                    }
+
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            user = null;
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+```
+
+As we can see various objects are kept in the DHT:
+- the *User* object with its peer_address which can be used to notify the peer (note: this field can be null when the user is not logged in the system, and therefore the notifications sent during this time are simply lost)
+- a *personal list* for each user. This is a list of *Pair<String, String>* (auction_name, author_name) that kept the information of the auctions that have been created by the user or for which the user has placed a bid
+- the *Auction* object representing an auction with all its information
+- a "Global auction list". This is a list of string representing the name of the auctions still "valid" (for which can be placed a bid).
+Actually this isn't kept as a single object, but is divided in various sublists according to the first character of the auction name. In fact, the *getListOfAuctions* method allows to retrieve all the auctions (auction's names) who begin with the passed character. 
+This choice was made to not have a single large list and try to balance it in many smaller sublists.
+
+The objects described before are put on the DHT using as keys the **SHA-1** hash of different strings. More precisely for an auction as key is used the hash of its name, for an user the hash of its username, for a personal list the hash of the string generated by the concatenation of the user's username and the hash of the username. And for a Global auction list containing all the auctions with the name beginning with a character "x", the hash of the string generated by the concatenation of a constant string defined in the class and the character "x". 
+
+To try to make everything clearer, let's see the **createAuction** method:
+
+```java
+public boolean createAuction(String _auction_name, Date _end_time, double _reserved_price, int _num_products, String _description) {
+        if(user == null) return false;
+        try {
+            FutureGet futureGet = _dht.get(Number160.createHash(_auction_name)).start();
+            futureGet.awaitUninterruptibly();
+            // Checks if the auction doesn't exist
+            if(futureGet.isSuccess() && futureGet.isEmpty()) {
+                // Auction creation
+                Auction auction = new Auction(_auction_name, user._username, _description, _num_products, _reserved_price, _end_time);
+                _dht.put(Number160.createHash(_auction_name)).data(new Data(auction)).start().awaitUninterruptibly();
+                
+                // Updates user's auctions list and global auctions list
+                
+                // Global auctions list update
+                Number160 global_list_key = Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(_auction_name.charAt(0)));
+                futureGet =_dht.get(global_list_key).start();
+                futureGet.awaitUninterruptibly();
+                if(futureGet.isSuccess()) {
+                    List<Pair<String, String>> auctions_list;
+                    if(futureGet.isEmpty()) {
+                        auctions_list = new ArrayList<>();
+                    } else {
+                        // Saves the new auctions in its list in order
+                        auctions_list =  (List<Pair<String, String>>) futureGet.data().object();
+                    }
+
+                    // Finds the position in which needs to be placed the new auction
+                    int pos = binarySearch(auctions_list, _auction_name);
+                    if(pos == - 1) pos = 0;
+                    auctions_list.add(pos, new Pair<>(_auction_name, user._username));
+                    _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
+                }
+
+                // user's auctions list update
+                Number160 my_list_key = generateUserKey(user._username);
+                futureGet = _dht.get(my_list_key).start();
+                futureGet.awaitUninterruptibly();
+                List<Pair<String, String>> list;
+                if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                    list = (List<Pair<String, String>>) futureGet.data().object();
+                } else {
+                    list = new ArrayList<>();
+                }
+                list.add(new Pair<>(_auction_name, user._username));
+                _dht.put(my_list_key).data(new Data(list)).start().awaitUninterruptibly();
+                my_auctions_list.add(_auction_name);
+
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+```
+Here we can see how an auction is retrieved and saved, and how the global list and the user's list are updated, all using the keys described before.
+
+Another important aspect to discuss about is the way in which the state of an auction is updated. It was decided to use a "lazy" approach. In fact, the state of an auction is updated only when it is retrieved and it's the same peer who needed it to update the auction. Let's see the private method used to check and update the state if necessary:
+
+```java
+private boolean checkAndUpdateState(Auction auction) throws Exception {
+        if(!isAValidDate(auction._end_time) && auction._auction_state == State.AVAILABLE) {
+            auction._auction_state = State.CLOSED;
+            _dht.put(Number160.createHash(auction._auction_name)).data(new Data(auction)).start().awaitUninterruptibly();
+            
+            // Need to remove auction from global auctions list
+            Number160 global_list_key = Number160.createHash(GLOBAL_AUCTIONS_LIST + Character.toLowerCase(auction._auction_name.charAt(0)));
+            FutureGet futureGet =_dht.get(global_list_key).start();
+            futureGet.awaitUninterruptibly();
+            if(futureGet.isSuccess()) {
+                // Removes the auction from the global list
+                List<Pair<String, String>> auctions_list;
+                if(futureGet.isEmpty()) {
+                    auctions_list = new ArrayList<>();
+                } else {
+                    auctions_list = (List<Pair<String, String>>) futureGet.data().object();
+                }
+                
+                int pos = binarySearch(auctions_list, auction._auction_name);
+                if(pos != -1 && auctions_list.get(pos).element0().equals(auction._auction_name))    // To be sure to remove the right auction 
+                    auctions_list.remove(pos);
+                _dht.put(global_list_key).data(new Data(auctions_list)).start().awaitUninterruptibly();
+
+                // Notification to the owner
+                String author = auction._author;
+                futureGet = _dht.get(Number160.createHash(author)).start();
+                futureGet.awaitUninterruptibly();
+                if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                    User owner = (User) futureGet.data().object();
+                    if(owner._peer_address != null) {
+                        // Sends a notification if the peer_address is set
+                        FutureDirect futureDirect = _dht.peer().sendDirect(owner._peer_address).object(new Message(Type.END_OWNER, auction._auction_name, auction._bid_list.size())).start();
+                        futureDirect.awaitUninterruptibly();
+                    }
+                }
+
+                // Notification to the bidders
+                for(int i = 0; i < auction._bid_list.size(); i++) {
+                    Bid bid = auction._bid_list.get(i);
+                    futureGet = _dht.get(Number160.createHash(bid._bid_owner)).start();
+                    futureGet.awaitUninterruptibly();
+                    if(futureGet.isSuccess() && !futureGet.isEmpty()) {
+                        User bidder = (User) futureGet.data().object();
+                        if(bidder._peer_address != null) {
+                            // Sends a notification if the peer_address is set
+                            // Calculates the price to pay for each bidder
+                            double bidder_value_to_pay = (i == auction._bid_list.size() - 1) ? auction._reserved_price : auction._bid_list.get(i + 1)._bid_value;
+                            FutureDirect futureDirect = _dht.peer().sendDirect(bidder._peer_address).object(new Message(Type.END_BIDDER, auction._auction_name, bidder_value_to_pay)).start();
+                            futureDirect.awaitUninterruptibly();
+                        }
+                    }
+                }
+
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+```
+As we can see, when the state of an auction is updated we need to remove the auction from the global list because the time of the auction is over and cannot be placed any other bids, and also we need to notify the end of the auction (sending a message as we'll see later) to the author of the auction and all the user who had placed a bid for it.
+
+## **Message Listener**
+
+<!-- Scrivere del message listener -->
+
+<!--GUI-->
+
+<!-- Testing -->
+
+<!-- Docker -->
+
+<!-- Conclusioni -->
+
+
 
 <!-- LICENSE -->
 
