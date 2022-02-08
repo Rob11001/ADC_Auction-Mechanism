@@ -352,19 +352,77 @@ private boolean checkAndUpdateState(Auction auction) throws Exception {
 ```
 As we can see, when the state of an auction is updated we need to remove the auction from the global list because the time of the auction is over and cannot be placed any other bids, and also we need to notify the end of the auction (sending a message as we'll see later) to the author of the auction and all the user who had placed a bid for it.
 
-## **Message Listener**
+## **MessageListener**
+This class implements the *parseMessage* method, which is invoked whenever the peer receives a new message from another peer.
 
-<!-- Scrivere del message listener -->
+```java
+public Object parseMessage(Object request) {
+        Message msg = (Message) request;
+        if(_notify_panel.getChildCount() > 5) {
+            _notify_panel.removeAllComponents();
+            _notify_panel.addComponent(new Label("Updates: "));
+        }
+
+        String str_msg = "";
+        // The type of notification to generate depending on message type
+        switch (msg._type) {
+            case REJECTED:
+                str_msg = String.format("- Your bid for the auction \"%s\" has been replaced", msg._auction_name);
+                // Updates my_bidder_list
+                for(int i = 0; i < auction_mech.my_bidder_list.size(); i++) {
+                    if(auction_mech.my_bidder_list.get(i).element0().equals(msg._auction_name)) {
+                        auction_mech.my_bidder_list.remove(i);
+                        break;
+                    }
+                }
+                break;
+            case END_BIDDER:
+                str_msg = String.format("- The auction \"%s\" is over, and you won with a bid of %.2f", msg._auction_name, msg._bid_amount);
+                break;
+            case END_OWNER:
+                str_msg = String.format("- Your auction \"%s\" is over with %d bids", msg._auction_name, msg._num_of_bids);
+                break;
+            default:
+                break;
+        }
+        _notify_panel.addComponent(new Label(str_msg));
+
+        return "success";
+    }
+```
+From the previous snippet we can see that there are three types of message that a peer can receive:
+- REJECTED: a message used to notify a peer when its bid is replaced by a new one
+- END_BIDDER: a message used to notify a bidder when an auction is over 
+- END_OWNER: a message used to notify the owner of the auction when it's over
+
+All the three types of message are shown in a notify_panel (a simple *Lantern Panel*).
 
 <!--GUI-->
+## **App**
+The main class (*App.java*) handles the startup of the application. In fact, in *App* are instantiated the peer (*AuctionMechanismImpl*) and the *IndexPage*, which is a simple class that extends *Lanterna*'s *Window* class representing the login page.
+
+![](/readme_images/index_page.png)
+
+After login, we switch from *IndexPage* to *MainPage*. This like the previous one is a class that extends *Lanterna*'s *Window* class and represents the main page of the application. In fact, here thanks to a menu bar, the user is able to do all the possible operations like:
+- see my personal list and logout
+![](/readme_images/menu_item_1.png)
+- create, search or get all auctions
+![](/readme_images/menu_item_2.png)
+- clean the notification panel
+![](/readme_images/menu_item_3.png)
+
+Here are some example of application screens: 
+
+![](/readme_images/List_of_auctions.png)
+
+![](/readme_images/auction.png)
+
 
 <!-- Testing -->
 
 <!-- Docker -->
 
 <!-- Conclusioni -->
-
-
 
 <!-- LICENSE -->
 
