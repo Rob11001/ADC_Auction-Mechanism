@@ -419,6 +419,83 @@ Here are some example of application screens:
 
 
 <!-- Testing -->
+# **Testing : JUnit**
+The testing has been done through the usage of **JUnit** and the Maven plugin **surefire**.
+
+The Test Case class is "*AuctionMechanismImplTest*", in which is tested every method of the implemented interface. For the testing have been instantiated four peer in a @BeforeAll method. This JUnit annotation allows that the method will be invoked only one before all the test methods (the methods annotated with @Test).
+
+```java
+@BeforeAll
+    static void setup() throws Exception {
+        // Peer initialization
+        peer_1 = new AuctionMechanismImpl(0, MASTER);
+        peer_1.setMessageListener(new MessageListenerImpl());
+
+        peer_2 = new AuctionMechanismImpl(1, MASTER);
+        peer_2.setMessageListener(new MessageListenerImpl());
+
+        peer_3 = new AuctionMechanismImpl(2, MASTER);
+        peer_3.setMessageListener(new MessageListenerImpl());
+        
+        peer_4 = new AuctionMechanismImpl(3, MASTER);
+        peer_4.setMessageListener(new MessageListenerImpl());
+    
+        peer_1.register("Peer_1", "Peer_1");
+        peer_2.register("Peer_2", "Peer_2");
+        peer_3.register("Peer_3", "Peer_3");
+        peer_4.register("Peer_4", "Peer_4");
+    }
+```
+
+Then at the end of the testing all the peer leave the network using another method annotated with @AfterAll.
+
+```java
+ @AfterAll
+    static void shutdown() {
+        assertTrue(peer_1.leaveNetwork(), "peer_1 didn't leave the network properly");
+        assertTrue(peer_2.leaveNetwork(), "peer_2 didn't leave the network properly");
+        assertTrue(peer_3.leaveNetwork(), "peer_3 didn't leave the network properly");
+        assertTrue(peer_4.leaveNetwork(), "peer_4 didn't leave the network properly");
+    }
+```
+
+Another important annotation used is **@Nested**. This JUnit annotation allows to group multiple test methods inside another class and in this way is possible to define other @BeforeAll, @AfterAll, @BeforeEach and @AfterEach methods that are applied only at the nested methods in the class. In fact, this annotation has been used to create a inner class "*PostLoginTest*" to test all the methods which required the login of the peers.
+
+Here below a part of the "*PostLoginTest*" class with its @BeforeEach and @AfterEach methods.
+```java
+@Nested
+    class PostLoginTest {
+        @BeforeEach
+        void login() {
+            peer_1.login("Peer_1", "Peer_1");
+            peer_2.login("Peer_2", "Peer_2");
+            peer_3.login("Peer_3", "Peer_3");
+            peer_4.login("Peer_4", "Peer_4");
+        }
+
+        @AfterEach
+        void logout() {
+            if(peer_1.user != null) peer_1.logout();
+            if(peer_2.user != null) peer_2.logout();
+            if(peer_3.user != null) peer_3.logout();
+            if(peer_4.user != null) peer_4.logout();
+        }
+
+        @Test
+        void testCreateAuction() {
+            // Correct auction creation
+            assertTrue(peer_1.createAuction("Auction_1", new Date(), 4.2, 10, "Description"), "The auction creation didn't go well");
+            assertEquals("Auction_1", peer_1.my_auctions_list.get(0), "The peer_1 didn't update its auctions list");
+
+            // Cannot create two auctions with same name
+            assertFalse(peer_2.createAuction("Auction_1", new Date(), 4.5, 10, "Description"), "The auction creation went well");
+            assertEquals(0, peer_2.my_auctions_list.size(), "The peer_1 updated its auctions list");
+
+            // Not logged peers cannot create auctions
+            assertTrue(peer_3.logout(), "The logout of the peer_3 didn't go well");
+            assertFalse(peer_3.createAuction("Auction_3", new Date(), 4.5, 1, "Description"), "The auction creation went well");
+        }
+```
 
 <!-- Docker -->
 
