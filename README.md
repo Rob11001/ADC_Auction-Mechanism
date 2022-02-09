@@ -10,7 +10,36 @@
 <details open="open">
   <summary><h1 style="display: inline-block">Table of Contents</h1></summary>
   <ol>
-    <li><a href="#">Introduction</a></li>
+    <li>
+        <a href="#introduction">Introduction</a>
+        <ul>
+         <li><a href="#problem">Problem</a></li>
+         <li><a href="#tools">Tools</a></li>
+      </ul>
+    </li>
+    <li>
+        <a href="#solutions-overview">Solution's Overview</a>
+        <ul>
+            <li>
+                <a href="#projects-structure">Project's Structure</a>
+            </li>
+            <li>
+                <a href="#auctionmechanism">AuctionMechanism</a>
+            </li>
+            <li>
+                <a href="#auctionmechanismimpl">AuctionMechanismImpl</a>
+            </li>
+            <li>
+                <a href="#messagelistener">MessageListener</a>
+            </li>
+            <li>
+                <a href="#app">App</a>
+            </li> 
+      </ul>
+    </li>
+    <li><a href="#testing-junit">Testing: JUnit</a></li>
+    <li><a href="#execution-in-a-docker-container">Execution in a Docker Container</a></li>
+    <li><a href="#future-developments">Future Developments</a></li>
     <li><a href="#license">License</a></li>
   </ol>
 </details>
@@ -419,7 +448,7 @@ Here are some example of application screens:
 
 
 <!-- Testing -->
-# **Testing : JUnit**
+# **Testing: JUnit**
 The testing has been done through the usage of **JUnit** and the Maven plugin **surefire**.
 
 The Test Case class is "*AuctionMechanismImplTest*", in which is tested every method of the implemented interface. For the testing have been instantiated four peer in a @BeforeAll method. This JUnit annotation allows that the method will be invoked only one before all the test methods (the methods annotated with @Test).
@@ -544,19 +573,21 @@ docker run -it --name MASTER-PEER -e MASTERIP="127.0.0.1" -e ID=0 --network auct
 The parameters in the *run* command are:
 - **--name**: Name of the container
 - **-e**: Environment variables
-- **--network**: Specify the network in which run the container
-
+- **--network**: Specifies the network in which run the container
+- **-it**: Allows to have a terminal with which you can interact with the application
 
 **6.** **Run a generic Peer**: using the automatic DNS resolution we don't need to check the Master Peer IP and we can simply run the following command:
 
 ```
 docker run -it --name PEER -e MASTERIP="MASTER-PEER" -e ID=1 --network auction-mechanism-net p2p-auction-mechanism
 ```
-Note: Remember to use the same network and the correct Master Peer container's name. In addition you need to use unique identifiers for peers' ID.
-
-
+Note: remember to use the same network and the correct Master Peer container's name. In addition you need to use unique identifiers for peers' ID.
 
 <!-- Conclusioni -->
+# Future Developments
+The possible future developments are many. For example could be added other operations like partial search of an auction by its name, the possibily for an user to update his information, the possibility to update an auction or to remove it and so on. 
+
+The same look of the application right now is very basic and raw, so it also could be improved in future versions.
 
 <!-- LICENSE -->
 
