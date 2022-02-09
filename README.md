@@ -499,6 +499,63 @@ Here below a part of the "*PostLoginTest*" class with its @BeforeEach and @After
 
 <!-- Docker -->
 
+# **Execution in a Docker Container**
+The application can be easily executed in a Docker container.
+The project has a *Dockerfile* in it, which can be used to launch the container.
+
+Here is the *Dockerfile* content:
+
+```dockerfile
+FROM maven:3.5-jdk-8-alpine
+WORKDIR /app
+COPY ./auction_mechanism /app
+RUN mvn package
+
+FROM openjdk:8-jre-alpine
+WORKDIR /app
+ENV MASTERIP=127.0.0.1
+ENV ID=0
+COPY --from=0 /app/target/auction_mechanism-1.0-jar-with-dependencies.jar /app
+
+CMD /usr/bin/java -jar auction_mechanism-1.0-jar-with-dependencies.jar -m $MASTERIP -id $ID
+```
+
+The steps to execute the application in a Docker container are the following:
+
+**1.** Download/clone the current repository 
+
+**2.** Open a terminal and move to the directory containing the Dockerfile
+
+**3.** **Build the Dockerfile** using the following command:
+```
+docker build --no-cache -t p2p-auction-mechanism .
+```
+**4.** **Create a simple docker network** using the following command:
+
+```
+docker network create auction-mechanism-net 
+```
+We use a simple docker network because this user-defined bridge, unlike the default bridge, provides an automatic DNS resolution between containers. In fact, on a user-defined bridge network, containers can resolve each other by name.
+
+**5.** **Run the Master Peer**:
+```
+docker run -it --name MASTER-PEER -e MASTERIP="127.0.0.1" -e ID=0 --network auction-mechanism-net p2p-auction-mechanism
+```
+The parameters in the *run* command are:
+- **--name**: Name of the container
+- **-e**: Environment variables
+- **--network**: Specify the network in which run the container
+
+
+**6.** **Run a generic Peer**: using the automatic DNS resolution we don't need to check the Master Peer IP and we can simply run the following command:
+
+```
+docker run -it --name PEER -e MASTERIP="MASTER-PEER" -e ID=1 --network auction-mechanism-net p2p-auction-mechanism
+```
+Note: Remember to use the same network and the correct Master Peer container's name. In addition you need to use unique identifiers for peers' ID.
+
+
+
 <!-- Conclusioni -->
 
 <!-- LICENSE -->
